@@ -1,0 +1,40 @@
+# Per-role LLM configuration for AgentTest.
+#
+# Each role gets its own model, max_tokens, and temperature; call sites
+# only pass prompts. Keep this file in sync with the AgentRole enum in
+# `engine/src/agenttest/agents/role.py` — the factory iterates AgentRole
+# and looks each entry up here.
+#
+# See `docs/project_plan.md` § 4 for what each role does in the pipeline.
+
+agents:
+  # Generates one JUnit 5 test method per (risk_site, owasp_risk) pair.
+  # Receives: target Java source, OWASP risk description, agent-pattern
+  # examples, the invariant to assert. Largest system prompt — cache it.
+  test_synthesizer:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    max_tokens: 1500
+    temperature: 0.3
+    enabled: true
+    prompt_cache_enabled: true
+
+  # Single-prompt baseline for the eval comparison. Same Java input,
+  # no retrieval / analyzer / per-risk loop. The eval harness calls
+  # this via `POST /generate/baseline`.
+  baseline:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    max_tokens: 2048
+    temperature: 0.3
+    enabled: true
+
+  # Model-as-judge, used only for secondary metrics (refusal correctness,
+  # qualitative spot-check). Primary recall / precision are objective —
+  # they run generated tests against injected risks, no judge involved.
+  judge:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    max_tokens: 500
+    temperature: 0.0
+    enabled: true

@@ -1,0 +1,32 @@
+# Secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+.vite/
+
+# Local data
+engine/data/*
+!engine/data/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code per-user settings (permission allowlist, etc.)
+.claude/settings.local.json
