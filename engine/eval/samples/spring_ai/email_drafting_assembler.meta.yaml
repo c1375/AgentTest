@@ -1,0 +1,17 @@
+sample_id: spring_ai/email_drafting_assembler
+description: |
+  Spring AI PromptTemplate with two user-controlled variables (intent
+  and recipient) substituted via HashMap.put(). Sanitizes both before
+  template construction.
+target_class: EmailDraftingAssembler
+target_package: com.example.spring
+applicable_injections:
+  - llm01_remove_sanitization
+expected_fail_locations:
+  llm01_remove_sanitization:
+    method: drafts
+    line_range: [23, 32]
+    note: |
+      With sanitize() neutralized, either userIntent or recipient can
+      carry a template-breakout payload that flows verbatim into the
+      assembled prompt. A correct LLM01 test fails on this variant.
