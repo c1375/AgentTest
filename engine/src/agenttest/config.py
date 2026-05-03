@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     # `${ANTHROPIC_API_KEY:sk-placeholder-for-startup}` pattern in
     # application.yml. Real API calls will fail until a valid key is set.
     anthropic_api_key: str = "sk-placeholder-for-startup"
-    openai_api_key: str = ""
     github_token: str = ""
 
     data_dir: Path = Path("data")
