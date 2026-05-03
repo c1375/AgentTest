@@ -220,10 +220,12 @@ possible — each row drops or replaces a single stage.
 **2. Retrieval-Augmented Generation (Week 4).** Two retrieval sources:
 the OWASP risk catalog (~10 risks, ~200 tokens each) and the agent-pattern
 library (~30 patterns, ~150 tokens each). Both stored as YAML plus an
-embedded index (`text-embedding-3-small`). Per risk site, retrieve top-3
-from the pattern library and matched OWASP entries, pack into the
-generator prompt. **Whether RAG (vs. stuffing the full catalog in every
-prompt) actually helps is empirically tested by ablation** — see § 5.
+embedded index built with `sentence-transformers/all-MiniLM-L6-v2`
+(local; ~80 MB one-time download, no extra API key). Per risk site,
+retrieve top-3 from the pattern library and matched OWASP entries, pack
+into the generator prompt. **Whether RAG (vs. stuffing the full catalog
+in every prompt) actually helps is empirically tested by ablation** —
+see § 5.
 
 **3. Structured outputs (Weeks 2–3).** The generator does not return free
 text. It returns a JSON object validated against
@@ -451,15 +453,13 @@ involved."*
 
 - *Privacy*: AgentTest does **not** collect, log, or persist any user
   data. The submitted Java source is, however, **transmitted to Anthropic**
-  for the Sonnet call — and, when the pattern-library RAG path is enabled,
-  the surrounding-context snippet is also sent to **OpenAI** for embedding
-  via `text-embedding-3-small`. The README states both providers explicitly
-  so users with proprietary code can make an informed choice before
-  running the tool.
-- *API keys*: the README documents which keys the grader needs to set
-  in `.env` to reproduce: `ANTHROPIC_API_KEY` (required for generation),
-  `OPENAI_API_KEY` (only required if RAG is enabled — disabled by default
-  for the smoke-test example).
+  for the Sonnet call. The README states this explicitly so users with
+  proprietary code can make an informed choice before running the tool.
+  The pattern-library RAG runs locally (sentence-transformers embedding,
+  no second provider).
+- *API keys*: the README documents the one key the grader needs to set
+  in `.env` to reproduce — `ANTHROPIC_API_KEY` (required for generation).
+  No other provider key is needed.
 - *Cost*: ~$0.05–0.10 per class generation; **≤ ~$20 per full ablation
   run** (5 ablation rows × ~50 cases × ~$0.05–0.10 per call, with
   prompt-cache hits on the synthesizer's system prompt). Within personal
