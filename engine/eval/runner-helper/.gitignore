@@ -1,0 +1,12 @@
+# Vendored jars are downloaded by setup.py with SHA-1 verification.
+# Don't commit the binary; the script is the source of truth.
+lib/*.jar
+
+# Compiled class files produced by setup.py.
+TestRunner.class
+TestRunner$*.class
+
+# Temp dirs the smoke / integration tests write to.
+_smoke/
+smoke/buggy/
+smoke/*.class

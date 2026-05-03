@@ -58,3 +58,6 @@ packages = ["src/agenttest"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: tests that need real external resources (JDK, real LLM, etc.)",
+]
