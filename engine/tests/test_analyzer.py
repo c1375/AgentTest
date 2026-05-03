@@ -5,7 +5,6 @@ from pathlib import Path
 
 from agenttest.analyzer.identify import AnalyzerInput, identify
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 

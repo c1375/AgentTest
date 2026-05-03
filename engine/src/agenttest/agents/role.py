@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class AgentRole(str, Enum):
+class AgentRole(StrEnum):
     """Symbolic names for the LLM roles AgentTest uses.
 
     Each role has its own model, max_tokens, and temperature, configured

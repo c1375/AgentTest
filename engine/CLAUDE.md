@@ -92,13 +92,17 @@ construct `httpx.AsyncClient` — they receive interfaces (Protocols).
   injected risk, expected fail location) — generated JUnit code is the
   output under test, not the oracle.
 
-## Domain Stage Stub Pattern
+## Pipeline Stage Pattern
 
-When stubbing a stage that's not implemented yet:
+Stages take typed input and return typed output from
+`agenttest.contracts`. The contracts are frozen dataclasses — stages
+must NOT invent their own shapes. Example (the real S1 analyzer):
 
 ```python
 # engine/src/agenttest/analyzer/identify.py
 from dataclasses import dataclass
+
+from agenttest.contracts import RiskSite
 
 
 @dataclass
@@ -107,19 +111,22 @@ class AnalyzerInput:
     file_path: str
 
 
-@dataclass
-class AnalyzerOutput:
-    risk_sites: list[dict]  # per-site: file, line range, risk category
-
-
-async def identify(input: AnalyzerInput) -> AnalyzerOutput:
-    raise NotImplementedError(
-        "S1 work — see docs/project_plan.md § 4 stage 1 (analyzer)"
-    )
+async def identify(
+    analyzer_input: AnalyzerInput,
+    parser: JavaAstParser | None = None,
+) -> list[RiskSite]:
+    ...
 ```
 
-Stubs should fail loudly with a pointer to the plan, not silently return
-placeholder data.
+When stubbing a stage that's not implemented yet, fail loudly with a
+pointer to the plan, not silent placeholder data:
+
+```python
+async def synthesize(grounding: Grounding, ...) -> GeneratedTest:
+    raise NotImplementedError(
+        "S2 work — see docs/plan/sprint-2.md Step 2 (generator)"
+    )
+```
 
 ## Forbidden
 

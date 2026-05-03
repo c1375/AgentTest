@@ -25,11 +25,15 @@ def test_each_client_has_resolved_config() -> None:
         assert client.config.is_anthropic
 
 
-def test_test_synthesizer_uses_sonnet_with_prompt_cache() -> None:
+def test_test_synthesizer_uses_sonnet() -> None:
+    # prompt_cache_enabled is intentionally False in S2 — the system
+    # prompt is below Anthropic's ~1024-token cache minimum until the
+    # OWASP catalog grows past 4 entries (see docs/plan/sprint-2.md
+    # § "Locked decision 5"). Re-flip in S3 and reinstate the assertion.
     factory = AgentClientFactory.from_settings(settings)
     synth = factory.get(AgentRole.TEST_SYNTHESIZER)
     assert "sonnet" in synth.config.model.lower()
-    assert synth.config.prompt_cache_enabled is True
+    assert synth.config.prompt_cache_enabled is False
 
 
 def test_baseline_uses_sonnet() -> None:

@@ -7,6 +7,7 @@ decision 1) lands in S3 alongside the FastAPI `/generate` route.
 """
 
 import asyncio
+import logging
 from pathlib import Path
 
 import typer
@@ -47,6 +48,11 @@ def generate(
     ),
 ) -> None:
     """Generate a JUnit 5 security test class for INPUT_PATH."""
+    # Surface pipeline progress logs to the user. The pipeline emits
+    # INFO-level lines like "[analyzer] found N risk site(s)"; in S3 these
+    # become async events and this handler goes away.
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     emission = asyncio.run(pipeline.run(input_path))
 
     output_path = out if out is not None else Path(emission.output_path)

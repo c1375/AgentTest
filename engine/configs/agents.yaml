@@ -10,14 +10,17 @@
 agents:
   # Generates one JUnit 5 test method per (risk_site, owasp_risk) pair.
   # Receives: target Java source, OWASP risk description, agent-pattern
-  # examples, the invariant to assert. Largest system prompt — cache it.
+  # examples, the invariant to assert. Cache disabled in S2: the system
+  # prompt is ~400 tokens (one OWASP entry), below Anthropic's ~1024-token
+  # cache minimum. Re-enable in S3 when the catalog grows past 4 entries
+  # (see docs/plan/sprint-2.md § "Locked decision 5").
   test_synthesizer:
     provider: anthropic
     model: claude-sonnet-4-6
     max_tokens: 1500
     temperature: 0.3
     enabled: true
-    prompt_cache_enabled: true
+    prompt_cache_enabled: false
 
   # Single-prompt baseline for the eval comparison. Same Java input,
   # no retrieval / analyzer / per-risk loop. The eval harness calls
