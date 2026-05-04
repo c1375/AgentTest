@@ -122,6 +122,7 @@ OwaspRiskId = str  # e.g., "LLM01_Prompt_Injection", "Agentic_Multi_Tenant"
 SiteKind = Literal[
     "prompt_assembly",      # builds a PromptTemplate from user input
     "tool_handler",         # @Tool method or LangChain4j tool implementation
+    "log_handler",          # logs user-attributable input via JUL/SLF4J (LLM02)
     "mcp_endpoint",         # MCP server tool registration / handler
     "tenant_boundary",      # privileged op that takes tenantId
     "retry_config",         # Resilience4j or similar retry/CB config
