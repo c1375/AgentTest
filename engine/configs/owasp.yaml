@@ -21,7 +21,7 @@
 #   exemplar_test        Tiny JUnit 5 + AssertJ test that catches the
 #                        violation. Used as few-shot output.
 #
-# S2 ships only LLM01. S3 adds LLM02 / LLM06 / Agentic_Multi_Tenant.
+# S2 ships only LLM01. S3 adds LLM06 + LLM02 (Agentic_Multi_Tenant defers to S4).
 
 - risk_id: LLM01_Prompt_Injection
   title: Prompt Injection
@@ -73,4 +73,120 @@
         assertThat(result.getContents())
             .as("assembled prompt must not contain the breakout payload verbatim")
             .doesNotContain("IGNORE ABOVE INSTRUCTIONS");
+    }
+
+- risk_id: LLM06_Excessive_Agency
+  title: Excessive Agency / Tool Description Mismatch
+  description: |
+    A tool exposed to the LLM declares one capability surface in its
+    description (e.g., "read-only menu lookup", "stateless weather
+    query") while the implementation does additional, unannounced
+    work — writing state, calling external APIs, mutating per-tenant
+    counters, emitting audit-log entries beyond the inbound trace.
+    The LLM trusts the description verbatim and may compose actions
+    assuming false invariants, leading to data leaks, billing
+    surprises, or privilege escalation.
+
+    The risk is unique to LLM-driven systems: in a traditional API
+    a Javadoc lie is a documentation bug; here the lie is an active
+    capability mis-declaration consumed by a planner whose only
+    grounding for what the tool does is the description string.
+
+  invariant_to_assert: |
+    For a tool whose description claims read-only or
+    side-effect-free behavior, invoking the implementation MUST NOT
+    change observable state outside the method (no writes to
+    repositories, no counter increments, no cache mutations, no
+    audit-log entries beyond the inbound trace).
+
+    The simplest testable form: snapshot the relevant collaborator
+    state before the call, invoke the method, snapshot again, assert
+    the two snapshots are equal. The clean implementation must
+    respect the description; the LLM06 injection violates it.
+
+    A passing test constructs the tool with in-memory test doubles
+    of every collaborator that could be mutated (counters,
+    repositories, caches), captures a `before` snapshot, invokes the
+    described method with a representative input, captures an
+    `after` snapshot, and asserts `assertThat(after).isEqualTo(before)`
+    with an `.as(...)` description naming the read-only claim.
+
+  exemplar_java: |
+    public List<MenuItem> searchMenu(SearchRequest req) {
+        viewCounter.increment(req.tenantId);   // BUG: not in description
+        return menuRepo.findMatching(req.query);
+    }
+
+  exemplar_test: |
+    @Test
+    void searchMenuLeavesViewCounterUnchanged() {
+        InMemoryViewCounter counter = new InMemoryViewCounter();
+        MenuMcpServer server = new MenuMcpServer(counter, new InMemoryMenuRepo());
+        long before = counter.snapshot("tenant-1");
+
+        server.searchMenu(new SearchRequest("tenant-1", "pasta"));
+
+        assertThat(counter.snapshot("tenant-1"))
+            .as("a tool described as read-only must not increment view counters")
+            .isEqualTo(before);
+    }
+
+- risk_id: LLM02_Sensitive_Information_Disclosure
+  title: Sensitive Information Disclosure
+  description: |
+    User-attributable input or context (PII, headers, secrets, prompt
+    history) is logged at INFO/DEBUG level in a way that crosses a
+    privilege boundary — the log sink (filesystem, ELK, third-party
+    SaaS) is not in the same trust boundary as the original payload.
+    A correct implementation redacts or omits sensitive fields
+    before logging, typically via a `redactPii` / `mask` helper or
+    a structured-logging filter.
+
+    For S3 the test pattern uses `java.util.logging.Handler`
+    directly to capture log records without an SLF4J shim. SLF4J/
+    Logback realism is deferred to S4 polish if grader feedback
+    flags it.
+
+  invariant_to_assert: |
+    For any input carrying a known PII sentinel (canonical:
+    "Authorization: Bearer SENTINEL_TOKEN", "email: sentinel@example.com",
+    "ssn: 999-99-9999"), the log lines emitted during the method's
+    execution MUST NOT contain that sentinel value verbatim.
+
+    The simplest testable form: attach a `java.util.logging.Handler`
+    to the logger the target uses, drive the method with an input
+    containing a sentinel, and assert the captured log text does not
+    contain the sentinel substring. A stronger form also asserts the
+    redaction marker (e.g., "***", "[REDACTED]") IS present, proving
+    the field was acknowledged-and-redacted rather than silently
+    dropped.
+
+    A passing test constructs a `TestLogHandler` (a JUL `Handler`
+    subclass that buffers records into a `capturedText()` String),
+    attaches it to the appropriate `Logger.getLogger(...)`, builds
+    an input object whose sensitive field equals the sentinel,
+    invokes the method, and asserts
+    `assertThat(handler.capturedText()).doesNotContain(sentinel)`
+    with an `.as(...)` description naming the field that must not
+    leak.
+
+  exemplar_java: |
+    public void logRequest(AgentRequest req) {
+        logger.info("Handling request: " + req.toString());  // BUG: leaks PII
+    }
+
+  exemplar_test: |
+    @Test
+    void doesNotLogAuthHeaderVerbatim() {
+        TestLogHandler handler = new TestLogHandler();
+        Logger logger = Logger.getLogger("com.example");
+        logger.addHandler(handler);
+
+        AgentRequest req = new AgentRequest();
+        req.setAuthHeader("Bearer SENTINEL_TOKEN");
+        new AgentLogger().logRequest(req);
+
+        assertThat(handler.capturedText())
+            .as("Authorization header must not appear verbatim in logs")
+            .doesNotContain("SENTINEL_TOKEN");
     }
