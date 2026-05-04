@@ -181,11 +181,15 @@
   exemplar_test: |
     @Test
     void doesNotLogAuthHeaderVerbatim() {
+        // Note: AgentRequest lives as a static-nested class inside the
+        // AgentLogger sample (single-file convention for AgentTest
+        // samples). Reach it via the qualified name AgentLogger.AgentRequest.
+        // Logger name MUST match the target's class FQN — JUL singletons
+        // are keyed by name, so the test and the target must agree.
         TestLogHandler handler = new TestLogHandler();
-        Logger logger = Logger.getLogger("com.example");
-        logger.addHandler(handler);
+        Logger.getLogger("com.example.spring.AgentLogger").addHandler(handler);
 
-        AgentRequest req = new AgentRequest();
+        AgentLogger.AgentRequest req = new AgentLogger.AgentRequest();
         req.setAuthHeader("Bearer SENTINEL_TOKEN");
         new AgentLogger().logRequest(req);
 

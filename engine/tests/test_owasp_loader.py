@@ -53,6 +53,21 @@ def test_load_owasp_llm06_exemplar_uses_qualified_nested_names() -> None:
     assert "MenuMcpServer.SearchRequest" in exemplar
 
 
+def test_load_owasp_llm02_exemplar_uses_qualified_nested_request() -> None:
+    """LLM02 AgentRequest is static-nested in AgentLogger.
+
+    Same rationale as the LLM06 sibling test. Additionally, the logger
+    name in the exemplar MUST be the target's class FQN, since JUL's
+    Logger.getLogger(name) returns singletons keyed by name — if the
+    test and target disagree on the name they hold different logger
+    instances and the handler captures nothing.
+    """
+    catalog = load_owasp(REAL_CATALOG)
+    exemplar = catalog["LLM02_Sensitive_Information_Disclosure"].exemplar_test
+    assert "AgentLogger.AgentRequest" in exemplar
+    assert "com.example.spring.AgentLogger" in exemplar
+
+
 def test_load_owasp_missing_field_raises_valueerror(tmp_path: Path) -> None:
     """Synthetic YAML with `invariant_to_assert` missing → ValueError naming the field."""
     bad = tmp_path / "owasp.yaml"
