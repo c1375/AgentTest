@@ -291,22 +291,39 @@ guard helper.
 
 ## Implementation deliverables (in dependency order)
 
-### Step 0 — Baseline behavior smoke (do this first)
+### Step 0 — Baseline behavior smoke (DONE 2026-05-03)
 
-Cost: $0.05, time: 0.1 day.
+Cost: $0.0324 actual (in=548, out=2048 tokens). Run was a one-shot
+script (deleted post-run) calling the BASELINE role on
+`RestaurantPromptAssembler.java` with the verbatim § 4 prompt.
 
-Run a single ad-hoc baseline call against `RestaurantPromptAssembler.java`
-with the exact prompt from `docs/project_plan.md` § 4. Read the
-output. Decide:
+**Empirical results:**
 
-- **If baseline emits Mockito imports** → we add a "no Mockito"
-  constraint to the baseline prompt to keep classpath fairness.
-  Document the constraint addition explicitly.
-- **If baseline emits AssertJ-only or pure JUnit** → ship the prompt
-  unchanged. Pipeline and baseline compete on the same surface.
+1. **Mockito: YES.** Baseline emitted three Mockito imports
+   (`MockedConstruction`, `Mockito`, static `ArgumentMatchers.anyMap`).
+   → **Step 4 baseline prompt MUST include a "no Mockito" constraint**
+   to match the runner-helper classpath (no `mockito-core` jar).
 
-Either way, the decision is empirical, not predicted. **Don't
-proceed past Step 0 without doing this.**
+2. **Output truncated at `max_tokens=2048`.** The response stopped
+   mid-line inside the second nested `@Test`. → **Step 4 must bump
+   `engine/configs/agents.yaml` `baseline.max_tokens` to ≥ 4096**, or
+   the baseline is unfair (incomplete code → COMPILE_FAIL by accident,
+   not by methodology).
+
+3. **Markdown fence wrap confirmed.** Output begins with a markdown
+   `# header` and ` ```java ` fence. → Step 4's `synthesize_baseline`
+   needs the same fence-stripping logic the structured generator
+   already uses (`agenttest.generator.synthesize` extractor).
+
+4. **Baseline reflects on private `sanitize()`** to assert behavior
+   (vs. asserting on the public `assemble()` output). Methodologically
+   weak — locks implementation, not contract. Doesn't affect
+   measurement (eval gate runs every emitted test on (clean, buggy)),
+   but is an honest "why baseline is not enough" point worth surfacing
+   in the README's Week-6 narrative.
+
+**Decision locked.** Proceed to Step 1 with these three constraints
+threaded into Step 4.
 
 ### Step 1 — Analyzer rule for LLM06 (`tool_handler`)
 
