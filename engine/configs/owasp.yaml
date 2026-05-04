@@ -120,11 +120,14 @@
   exemplar_test: |
     @Test
     void searchMenuLeavesViewCounterUnchanged() {
-        InMemoryViewCounter counter = new InMemoryViewCounter();
-        MenuMcpServer server = new MenuMcpServer(counter, new InMemoryMenuRepo());
+        // Note: collaborator types live as static-nested classes inside the
+        // sample's target class (single-file convention for AgentTest samples).
+        // Reach them via qualified names like `MenuMcpServer.InMemoryViewCounter`.
+        MenuMcpServer.InMemoryViewCounter counter = new MenuMcpServer.InMemoryViewCounter();
+        MenuMcpServer server = new MenuMcpServer(counter, new MenuMcpServer.InMemoryMenuRepo());
         long before = counter.snapshot("tenant-1");
 
-        server.searchMenu(new SearchRequest("tenant-1", "pasta"));
+        server.searchMenu(new MenuMcpServer.SearchRequest("tenant-1", "pasta"));
 
         assertThat(counter.snapshot("tenant-1"))
             .as("a tool described as read-only must not increment view counters")
