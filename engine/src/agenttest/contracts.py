@@ -34,6 +34,27 @@ class RiskSite:
 
 
 @dataclass(frozen=True)
+class BaselineEmission:
+    """Output of `baseline.synthesize.synthesize_baseline`.
+
+    The single-prompt comparison's emission. Mirrors `TestClassEmission`
+    in shape — both end up running through the same eval gate (compile
+    + run-on-clean + run-on-buggy) — but baseline carries no
+    risks_covered or refused_sites because it doesn't track per-risk
+    inside the pipeline.
+
+    `parseable` flags whether `java_source` parses as Java. False
+    means the model returned something that isn't recoverable as a
+    test class (e.g., refused, returned only prose, or emitted broken
+    Java); the eval runner treats these as a separate audit category
+    so they don't pollute recall/precision math.
+    """
+    target_class_name: str
+    java_source: str         # extracted from a markdown fence if present, else raw
+    parseable: bool          # True if javalang.parse succeeded on java_source
+
+
+@dataclass(frozen=True)
 class OwaspEntry:
     risk_id: OwaspRiskId
     title: str

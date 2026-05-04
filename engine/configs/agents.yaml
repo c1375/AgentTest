@@ -24,11 +24,14 @@ agents:
 
   # Single-prompt baseline for the eval comparison. Same Java input,
   # no retrieval / analyzer / per-risk loop. The eval harness calls
-  # this via `POST /generate/baseline`.
+  # this via `POST /generate/baseline`. max_tokens raised to 4096 in
+  # S3 — the Step 0 smoke (docs/plan/sprint-3.md) showed the response
+  # truncates at 2048 mid-method, which would unfairly tank baseline
+  # recall via accidental COMPILE_FAIL.
   baseline:
     provider: anthropic
     model: claude-sonnet-4-6
-    max_tokens: 2048
+    max_tokens: 4096
     temperature: 0.3
     enabled: true
 
