@@ -96,3 +96,29 @@ class EvalResult:
     timestamp_utc: str
     samples: list[SampleResult]
     summary: SummaryStats
+
+
+@dataclass(frozen=True)
+class ComparisonDelta:
+    """Pipeline-mode metric minus baseline-mode metric, in percentage points.
+
+    Positive numbers mean the structured pipeline beat the single-prompt
+    baseline. `samples_compared` is `min(pipeline.total_pairs,
+    baseline.total_pairs)` — they should be equal in practice (same
+    samples_dir, same applicable_injections), but mismatched counts are
+    a configuration bug worth surfacing rather than silently averaging.
+    """
+    recall_at_class_pp: float
+    precision_pp: float
+    samples_compared: int
+
+
+@dataclass(frozen=True)
+class ComparisonResult:
+    """Output of `eval/compare.py`. Combines both modes' EvalResults
+    plus a delta. Headline artifact for the Week-6 check-in narrative.
+    """
+    timestamp_utc: str
+    pipeline: EvalResult
+    baseline: EvalResult
+    delta: ComparisonDelta
