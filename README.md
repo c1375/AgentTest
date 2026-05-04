@@ -3,9 +3,13 @@
 Security-aware JUnit test generator for Java AI agent code (Spring AI /
 LangChain4j / MCP). Final project for a Generative AI course.
 
-> **Status:** Sprint S1 (Week 4) — scaffold in place; analyzer / retrieval /
-> generator / validator / evaluator stages are being built next. The polished
-> README, runnable example, and evaluation results land by Week 8.
+> **Status:** S2 complete; S3 in progress. The end-to-end pipeline
+> (analyzer → generator → validator → aggregator) measures
+> Recall@class = Precision = 100% on 2 LLM01 prompt-injection samples
+> (`engine/eval/results/run-2026-05-04T00-39-58.json`). S3 widens to
+> 3 OWASP risks (LLM01 + LLM06 + LLM02) and adds the baseline endpoint;
+> see [`docs/plan/sprint-3.md`](docs/plan/sprint-3.md). Polished README,
+> runnable example, and full evaluation results land by Week 8.
 
 ## What this is
 

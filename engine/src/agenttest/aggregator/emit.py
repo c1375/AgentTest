@@ -39,6 +39,12 @@ _IMPORT_RE = re.compile(
 )
 
 
+_TEST_ANNOTATION_RE = re.compile(
+    r"^\s*@(?:org\.junit\.jupiter\.api\.)?Test\b",
+    re.MULTILINE,
+)
+
+
 @dataclass(frozen=True)
 class _SplitMethod:
     """Per-method extraction: imports + the method source minus imports."""
@@ -55,19 +61,41 @@ def _split_imports(method_source: str) -> _SplitMethod:
     AssertJ's static `assertThat`). We strip and aggregate them so
     the wrapped class file ends up with a single deduplicated import
     block.
+
+    Scope: only the prelude before the first `@Test` annotation is
+    scanned. This prevents a string literal like `"import x;"` inside
+    the method body from being hoisted out as if it were a real
+    import declaration.
     """
-    imports = [m.group(0).strip() for m in _IMPORT_RE.finditer(method_source)]
-    cleaned = _IMPORT_RE.sub("", method_source).strip()
+    test_match = _TEST_ANNOTATION_RE.search(method_source)
+    if test_match:
+        prelude = method_source[: test_match.start()]
+        rest = method_source[test_match.start() :]
+    else:
+        prelude = method_source
+        rest = ""
+    imports = [m.group(0).strip() for m in _IMPORT_RE.finditer(prelude)]
+    cleaned_prelude = _IMPORT_RE.sub("", prelude).strip()
+    if cleaned_prelude and rest:
+        cleaned = f"{cleaned_prelude}\n\n{rest}".strip()
+    else:
+        cleaned = (cleaned_prelude + rest).strip()
     return _SplitMethod(imports=imports, method_source=cleaned)
 
 
 def _dedup_imports(method_imports: list[list[str]]) -> list[str]:
-    """First-writer-wins dedup; log if the same name appears twice."""
+    """First-writer-wins dedup; INFO-log when a dropped duplicate differs from the kept line."""
     seen: dict[str, str] = {}  # canonical key → original line
     for imports_for_method in method_imports:
         for line in imports_for_method:
             key = re.sub(r"\s+", " ", line).strip().rstrip(";")
             if key in seen:
+                if seen[key] != line:
+                    logger.info(
+                        "aggregator: dedup_imports kept %r, dropped %r",
+                        seen[key],
+                        line,
+                    )
                 continue
             # If a static and non-static of the same target both appear,
             # keep both — they're different keys above.

@@ -335,6 +335,30 @@ when the data forces a decision.
 
 ---
 
+## S2 retrospective
+
+S2 implemented the LLM01 end-to-end path. Two non-obvious findings
+surfaced during prompt iteration and bind future S3+ work:
+
+1. **`target_class_fqn` must be threaded into the generator prompt
+   explicitly.** Sonnet defaults to inventing a plausible-but-wrong
+   package when the FQN isn't in the prompt body, which breaks
+   `new <Target>()` once the test is wrapped in the target's package.
+   The `Grounding`/prompt assembly must always carry the resolved
+   FQN, not just the bare class name.
+
+2. **Sample `sanitize()` (or equivalent guard) coverage must match
+   the OWASP entry's `invariant_to_assert` payload list.** S2's
+   first iteration shipped samples whose sanitize() handled only
+   one of the LLM01 breakout payloads; the generator emitted tests
+   asserting *every* payload, so recall was capped by the sample's
+   own guard, not the system. Lesson: when authoring a clean sample,
+   walk the OWASP entry's invariant_to_assert payload set and ensure
+   the clean code defends against **all** of them. S3 sample-author
+   work (LLM06 / LLM02) is bound by this rule.
+
+---
+
 ## What S1 actually builds (driven by this doc)
 
 Concrete S1 deliverable, in dependency order:

@@ -50,6 +50,9 @@ def _row(
     return SampleResult(
         sample_id=sample_id,
         injection_name=injection_name,
+        # The `status` field is a Literal[...]; this fixture takes a
+        # plain str so callers can pass any case-name string. mypy can't
+        # narrow at the call site, so silence it here.
         status=status,  # type: ignore[arg-type]
         tests_emitted=1 if status == "measured" else 0,
         refused_sites=0,
