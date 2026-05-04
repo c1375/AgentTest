@@ -72,9 +72,10 @@ public class MenuMcpServer {
 
     @Tool(description = "read-only menu search; returns matching items, never writes any state")
     public List<MenuItem> searchMenu(SearchRequest req) {
-        // Clean: read-only path. Consults the repo, returns the result.
-        // The LLM06 injection inserts viewCounter.increment(req.tenantId())
-        // here, violating the read-only description.
+        // Clean: read-only path. The marker below is a comment in the
+        // clean variant and a live statement after the LLM06 injection
+        // un-comments it. See engine/eval/injections/llm06_add_unannounced_write.py.
+        // LLM06_INJECT: viewCounter.increment(req.tenantId());
         return menuRepo.findMatching(req.query());
     }
 }

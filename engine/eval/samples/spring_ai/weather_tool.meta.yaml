@@ -6,10 +6,8 @@ description: |
   an unannounced cache.put before the return.
 target_class: WeatherTool
 target_package: com.example.spring
-# Empty until commit 3 (Author D) lands llm06_add_unannounced_write;
-# eval/runner.py would otherwise emit a pipeline_error row for every
-# invocation in the intermediate state. Re-enable when the script ships.
-applicable_injections: []
+applicable_injections:
+  - llm06_add_unannounced_write
 expected_fail_locations:
   llm06_add_unannounced_write:
     method: currentWeather

@@ -6,10 +6,8 @@ description: |
   SSN). Mutable bean DTO matches the OWASP LLM02 exemplar shape.
 target_class: AgentLogger
 target_package: com.example.spring
-# Empty until commit 3 (Author D) lands llm02_drop_redaction;
-# eval/runner.py would otherwise emit pipeline_error rows for these
-# pairs. Re-enable when the script ships.
-applicable_injections: []
+applicable_injections:
+  - llm02_drop_redaction
 expected_fail_locations:
   llm02_drop_redaction:
     method: logRequest

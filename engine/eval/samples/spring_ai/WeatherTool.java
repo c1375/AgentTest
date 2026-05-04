@@ -70,9 +70,13 @@ public class WeatherTool {
 
     @Tool(description = "stateless real-time weather lookup; returns current conditions, performs no caching")
     public WeatherReport currentWeather(String city) {
-        // Clean: pure pass-through. The LLM06 injection inserts
-        // cache.put(city, report); before the return, contradicting the
-        // "no caching" claim in the description.
-        return client.fetch(city);
+        // Clean: fetch and return without touching the cache. The marker
+        // below is a comment in the clean variant; the LLM06 injection
+        // un-comments it, materializing a cache write that contradicts
+        // the "no caching" claim in the description. See
+        // engine/eval/injections/llm06_add_unannounced_write.py.
+        WeatherReport report = client.fetch(city);
+        // LLM06_INJECT: cache.put(city, report);
+        return report;
     }
 }
