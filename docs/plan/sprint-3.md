@@ -363,19 +363,36 @@ discrimination), `candidate_risks=["LLM02_Sensitive_Information_Disclosure"]`.
 
 Test: extend `test_analyzer.py` with positive + negative cases.
 
-### Step 3 — Generator-side LLM06 + LLM02 smoke (real Sonnet)
+### Step 3 — Generator-side LLM06 + LLM02 smoke (DONE 2026-05-04)
 
-The generator's prompt template is risk-agnostic — it threads the
-right `OwaspEntry` from `grounding`. New risks should "just work" via
-their catalog entries. Verify with two real-Sonnet smokes:
+Both smokes succeeded on the first try; **zero prompt iteration
+needed**. Total cost ~$0.06 (well under the $1 cap budgeted for
+iteration). Two key observations:
 
-- LLM06 on `MenuMcpServer.java` → expect a state-snapshot test.
-- LLM02 on `AgentLogger.java` → expect a `TestLogHandler`-attaching test.
+1. **LLM06 (MenuMcpServer)**: Sonnet emitted the snapshot-invoke-
+   snapshot pattern verbatim from the OWASP exemplar, using the
+   qualified `com.example.spring.MenuMcpServer.InMemoryViewCounter`
+   FQN throughout. The exemplar update from f07ff5a (Author C-LLM06)
+   that added `MenuMcpServer.InMemoryViewCounter` qualified syntax
+   to the exemplar paid off — Sonnet copied the qualification
+   pattern correctly. Validator gate kept the test (compiles + passes
+   on clean variant).
 
-If either smoke produces nonsense (cargo-culted class names, wrong
-fixture API), iterate the catalog `exemplar_test` until it lands. We
-budget 1 day total for prompt iteration across both risks (S2 needed
-0.5 day on LLM01 — assume S3 is similar per risk).
+2. **LLM02 (AgentLogger)**: Sonnet emitted a single @Test method
+   covering all three sentinels (Bearer / email / SSN) per the
+   invariant_to_assert payload list, with defensive
+   `julLogger.setLevel(Level.ALL)` and a `try/finally`
+   `removeHandler` cleanup. Notably, Sonnet inlined a local
+   `TestLogHandler` class instead of importing the
+   `com.example.test.TestLogHandler` stub (Author B). The stub is
+   thus unused for this sample but remains useful as a stable
+   integration point for the runner-helper's recursive shim
+   discovery — and a future S4 sample with multiple log_handler
+   methods would benefit from a shared stub. Validator gate kept
+   the test.
+
+Conclusion: the methodology proven on LLM01 in S2 generalizes to
+LLM06 and LLM02 with no prompt-iteration cost. Proceed to Step 4.
 
 ### Step 4 — Baseline endpoint
 
