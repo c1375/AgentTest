@@ -37,6 +37,7 @@ class OwaspEntry:
     risk_id: OwaspRiskId
     title: str
     description: str
+    invariant_to_assert: str   # machine-readable contract — load-bearing for the generator
     exemplar_java: str
     exemplar_test: str
 

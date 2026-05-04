@@ -241,8 +241,11 @@ agenttest/
 ├── validator/              # NEW, S2
 │   ├── __init__.py
 │   ├── parse.py            # javalang parse-check on test_method_source
-│   ├── compile.py          # in-memory javac wrapper
-│   └── runtime.py          # run on clean variant, drop if fails
+│   ├── run.py              # subprocess to engine/eval/runner-helper TestRunner
+│   │                       # (compile + run-on-clean in one shot —
+│   │                       # supersedes the planned compile.py + runtime.py
+│   │                       # split, since the runner-helper does both)
+│   └── gate.py             # chains parse → run, returns ValidatedTest|None
 │
 └── aggregator/             # NEW, S2
     ├── __init__.py
