@@ -122,7 +122,7 @@ async def test_synthesize_strict_json_returns_generated_test() -> None:
     client = AsyncMock()
     client.complete = AsyncMock(return_value=_msg(_GOOD_JSON))
 
-    result = await synthesize(_grounding(), client, owasp_catalog={})
+    result = await synthesize(_grounding(), client, owasp_catalog={}, target_class_fqn="com.example.Foo")
 
     assert isinstance(result, GeneratedTest)
     assert result.refused is False
@@ -138,7 +138,7 @@ async def test_synthesize_fenced_json_succeeds_first_try() -> None:
     client = AsyncMock()
     client.complete = AsyncMock(return_value=_msg(fenced))
 
-    result = await synthesize(_grounding(), client, owasp_catalog={})
+    result = await synthesize(_grounding(), client, owasp_catalog={}, target_class_fqn="com.example.Foo")
 
     assert result.refused is False
     assert result.risk_id == "LLM01_Prompt_Injection"
@@ -150,7 +150,7 @@ async def test_synthesize_retries_once_then_succeeds() -> None:
     client = AsyncMock()
     client.complete = AsyncMock(side_effect=[_msg(bad), _msg(_GOOD_JSON)])
 
-    result = await synthesize(_grounding(), client, owasp_catalog={})
+    result = await synthesize(_grounding(), client, owasp_catalog={}, target_class_fqn="com.example.Foo")
 
     assert result.refused is False
     assert result.risk_id == "LLM01_Prompt_Injection"
@@ -171,7 +171,7 @@ async def test_synthesize_two_failures_returns_refused_generated_test() -> None:
         side_effect=[_msg("garbage 1"), _msg("still garbage 2")]
     )
 
-    result = await synthesize(_grounding(), client, owasp_catalog={})
+    result = await synthesize(_grounding(), client, owasp_catalog={}, target_class_fqn="com.example.Foo")
 
     assert result.refused is True
     assert result.refusal_reason == "JSON parse failure after retry"
@@ -192,7 +192,7 @@ async def test_synthesize_surfaces_model_refusal() -> None:
     client = AsyncMock()
     client.complete = AsyncMock(return_value=_msg(refusal))
 
-    result = await synthesize(_grounding(), client, owasp_catalog={})
+    result = await synthesize(_grounding(), client, owasp_catalog={}, target_class_fqn="com.example.Foo")
 
     assert result.refused is True
     assert result.refusal_reason == "method has no observable output"

@@ -65,6 +65,14 @@ def validate_gate(
             result.outcome,
             result.details,
         )
+        # Dump the wrapped test source at DEBUG so prompt-iteration
+        # cycles can see exactly what Sonnet emitted, without spamming
+        # normal runs.
+        logger.debug(
+            "[validator] dropped test source for %s:\n%s",
+            generated.risk_id,
+            test_class_source,
+        )
         return None
 
     return ValidatedTest(

@@ -72,6 +72,9 @@ async def run(input_path: str | Path) -> TestClassEmission:
 
     target_class_name = path.stem
     target_package = _infer_package(java_source)
+    target_class_fqn = (
+        f"{target_package}.{target_class_name}" if target_package else target_class_name
+    )
     output_path = _output_path_for(path, target_class_name)
 
     # Empty short-circuit: if no sites, emit a placeholder header-only
@@ -123,7 +126,12 @@ async def run(input_path: str | Path) -> TestClassEmission:
                 )
 
                 try:
-                    generated = await synthesize(grounding, client, owasp_catalog)
+                    generated = await synthesize(
+                        grounding,
+                        client,
+                        owasp_catalog,
+                        target_class_fqn=target_class_fqn,
+                    )
                 except AnthropicError as exc:
                     # API/network/auth failures fail this site only; the
                     # next site might succeed (e.g., transient 429). Other

@@ -192,6 +192,7 @@ async def synthesize(
     grounding: Grounding,
     client: AgentClient,
     owasp_catalog: dict[OwaspRiskId, OwaspEntry],  # noqa: ARG001 — reserved for S3 multi-risk
+    target_class_fqn: str,
 ) -> GeneratedTest:
     """Generate one JUnit 5 test method for `(site, risk_id)`.
 
@@ -202,9 +203,15 @@ async def synthesize(
     Real `AgentClient.complete` errors (auth, rate limit, network) are
     NOT caught here — they propagate so the caller can decide whether
     to drop the site or abort the run.
+
+    `target_class_fqn` is the fully-qualified name of the class under
+    test (e.g., `com.example.spring.RestaurantPromptAssembler`). The
+    model uses it verbatim to construct the instance — without it, the
+    snippet alone doesn't disambiguate the class name and Sonnet is
+    prone to inventing one.
     """
     system = build_system_prompt()
-    user_prompt = build_user_prompt(grounding)
+    user_prompt = build_user_prompt(grounding, target_class_fqn)
     messages: list[dict[str, Any]] = [{"role": "user", "content": user_prompt}]
 
     response = await client.complete(system=system, messages=messages)

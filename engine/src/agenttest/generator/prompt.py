@@ -43,6 +43,11 @@ CONVENTIONS:
   - DO NOT use Mockito — it is not on the runner classpath in S2.
     Construct the target class directly with `new ...()`. Do not emit
     `import org.mockito.*` lines either; the test will fail to compile.
+  - **Construct the target class using the EXACT fully-qualified name
+    given in `<target_class_fqn>`.** Do NOT invent a class name, do
+    NOT shorten the package, do NOT guess the constructor based on
+    the snippet. Call the method named in `<target_method_name>` on
+    that exact instance.
   - Output a SINGLE @Test method body. NOT a full class. The
     aggregator wraps surviving methods into a class.
   - The test must be self-contained: any input fixtures (e.g., the
@@ -50,6 +55,10 @@ CONVENTIONS:
   - Anchor your assertion to the provided invariant. Do NOT write a
     tautological assertion that always passes (e.g., asserting that
     a string equals itself).
+  - Do NOT invent your own PromptTemplate inside the test. The whole
+    point of the test is to exercise the target class's behavior on
+    adversarial input — rebuilding the template inside the test
+    bypasses the very code the test is supposed to check.
 
 OUTPUT FORMAT — return a SINGLE JSON object with these keys, NO prose
 before or after, NO markdown fences:
@@ -77,14 +86,15 @@ def build_system_prompt() -> str:
     return _SYSTEM_PROMPT
 
 
-def build_user_prompt(grounding: Grounding) -> str:
+def build_user_prompt(grounding: Grounding, target_class_fqn: str) -> str:
     """Assemble the per-call user prompt from a `Grounding`.
 
     The OWASP `invariant_to_assert` is threaded verbatim under an
     `<invariant>` tag. The exemplar pair appears as `<exemplar_java>`
     + `<exemplar_test>`. The target site source appears under
-    `<target_source>`. Tags help the model parse the structure
-    deterministically and match the format used in the few-shot.
+    `<target_source>`. The target class's fully-qualified name appears
+    under `<target_class_fqn>` so the model doesn't have to (mis-)infer
+    it from the snippet.
     """
     site = grounding.site
     entry = grounding.owasp_entry
@@ -106,6 +116,7 @@ def build_user_prompt(grounding: Grounding) -> str:
         "<exemplar_test>\n"
         f"{entry.exemplar_test.rstrip()}\n"
         "</exemplar_test>\n\n"
+        f"<target_class_fqn>{target_class_fqn}</target_class_fqn>\n"
         f"<target_method_name>{site.method_name}</target_method_name>\n"
         f"<target_lines>[{site.line_start}, {site.line_end}]</target_lines>\n\n"
         "<target_source>\n"

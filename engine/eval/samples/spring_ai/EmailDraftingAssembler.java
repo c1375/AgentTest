@@ -33,8 +33,12 @@ public class EmailDraftingAssembler {
     }
 
     private static String sanitize(String input) {
+        // Strip the canonical prompt-injection payloads listed in the
+        // OWASP LLM01 invariant. Removing this is the LLM01 injection.
         return input.replaceAll("[{}]", "")
                     .replaceAll("(?i)\\bignore\\s+(?:above|previous)\\b", "")
-                    .replaceAll("(?i)\\b(?:system|assistant)\\s*:", "");
+                    .replaceAll("(?i)\\b(?:system|assistant)\\s*:", "")
+                    .replaceAll("(?i)<\\|im_(?:end|start)\\|>", "")
+                    .replaceAll("(?i)\\[/?INST\\]", "");
     }
 }
