@@ -7,15 +7,36 @@ measurement and the aggregate run summary.
 
 A `SampleResult` is one row in the run JSON: one sample paired with
 one named injection. `EvalResult` is the file-level shape written to
-`eval/results/run-<timestamp>.json`.
+`eval/results/run-{mode}-<timestamp>.json` (mode = pipeline | baseline).
 
-`status` is a tri-state because an eval pair can fail to produce a
-measurement in two distinct ways:
-  - "no_tests_emitted": the pipeline ran cleanly but yielded no
-    surviving JUnit methods, so there's nothing to run against the
-    clean / buggy variants.
-  - "pipeline_error": the pipeline raised. We capture the stringified
-    exception and skip the runner-helper invocations for this pair.
+`status` enumerates the ways a pair can finish:
+
+  Common to both modes:
+    - "measured":            test executed against both clean and buggy
+                             variants; recall/precision are valid.
+    - "no_tests_emitted":    the pipeline ran cleanly but yielded no
+                             surviving JUnit methods (pipeline mode only
+                             in practice — baseline always emits
+                             *something*, even if unparseable).
+    - "pipeline_error":      a stage raised. The exception is captured
+                             in `error` and the runner-helper is skipped.
+
+  Baseline-mode-only failure breakdowns (per Q2 in the Step 5 design
+  discussion: baseline failures get their own audit categories rather
+  than collapsing into recall/precision math):
+    - "baseline_unparseable":   model output failed javalang parse.
+    - "baseline_compile_fail":  parses but the wrapped class doesn't
+                                compile against the runner-helper
+                                classpath (e.g., Mockito imports despite
+                                the prompt's no-Mockito constraint).
+    - "baseline_clean_fail":    compiles but at least one test FAILs
+                                on the clean variant (asserts a false
+                                invariant).
+
+  Recall / precision denominators are still `measured_pairs` only —
+  the baseline-* statuses are separate counters in `SummaryStats` so
+  the comparison report can call out "baseline emits N% un-compilable
+  tests" as a distinct signal.
 """
 
 from __future__ import annotations
@@ -23,7 +44,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-SampleStatus = Literal["measured", "no_tests_emitted", "pipeline_error"]
+SampleStatus = Literal[
+    "measured",
+    "no_tests_emitted",
+    "pipeline_error",
+    "baseline_unparseable",
+    "baseline_compile_fail",
+    "baseline_clean_fail",
+]
 
 
 @dataclass(frozen=True)
@@ -44,7 +72,11 @@ class SampleResult:
 
 @dataclass(frozen=True)
 class SummaryStats:
-    """Run-level rollup. Recall/precision denominators are `measured_pairs`."""
+    """Run-level rollup. Recall/precision denominators are `measured_pairs`.
+
+    Baseline-only counters default to 0 in pipeline-mode runs so the
+    JSON shape is uniform across both modes.
+    """
 
     total_pairs: int
     measured_pairs: int
@@ -52,6 +84,9 @@ class SummaryStats:
     precision: float
     no_tests_emitted: int
     pipeline_errors: int
+    baseline_unparseable: int = 0
+    baseline_compile_fail: int = 0
+    baseline_clean_fail: int = 0
 
 
 @dataclass(frozen=True)

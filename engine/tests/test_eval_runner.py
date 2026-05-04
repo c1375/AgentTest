@@ -5,14 +5,14 @@ Two flavors:
 1. Pure unit test on `_summarize`: synthetic `SampleResult` lists drive
    the recall/precision math. No pipeline, no JVM. The denominator
    contract is the interesting one — only `measured` pairs count toward
-   recall and precision; `no_tests_emitted` and `pipeline_error` are
-   tracked separately.
+   recall and precision; `no_tests_emitted`, `pipeline_error`, and the
+   three baseline-* statuses are tracked separately.
 
-2. Integration test on `run_eval`: marked `integration` and gated on
-   the runner-helper. Monkey-patches `pipeline.run` to return a hand-
-   authored `TestClassEmission` (no real LLM call), so we still
-   exercise the runner-helper round-trip on both clean and buggy
-   variants.
+2. Integration tests on `run_eval`: marked `integration` and gated on
+   the runner-helper. Monkey-patches `pipeline.run` (pipeline mode)
+   or `synthesize_baseline` (baseline mode) to return hand-authored
+   emissions — no real LLM call — so we exercise the runner-helper
+   round-trip on both clean and buggy variants.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -32,7 +33,10 @@ if str(ENGINE_ROOT) not in sys.path:
 # Aliased on import: pytest tries to auto-collect anything named
 # `Test*` at module top level and emits a warning when it finds a
 # dataclass with a generated __init__. Aliasing dodges that.
-from agenttest.contracts import TestClassEmission as _TestClassEmission  # noqa: E402
+from agenttest.contracts import (  # noqa: E402
+    BaselineEmission as _BaselineEmission,
+    TestClassEmission as _TestClassEmission,
+)
 from agenttest.validator.run import runner_helper_ready  # noqa: E402
 from eval.results import SampleResult  # noqa: E402
 from eval.runner import _summarize, run_eval  # noqa: E402
@@ -133,6 +137,29 @@ class TestSummarize:
         assert s.recall_at_class == 0.0
         assert s.precision == 0.0
 
+    def test_baseline_audit_counters_track_per_status(self) -> None:
+        """Baseline-mode failure modes are counted in their own fields and
+        do NOT inflate measured_pairs / recall / precision denominators.
+        """
+        rows = [
+            _row(recall_caught=True, precision_clean_pass=True),
+            _row(status="baseline_unparseable"),
+            _row(status="baseline_compile_fail"),
+            _row(status="baseline_compile_fail"),
+            _row(status="baseline_clean_fail"),
+        ]
+        s = _summarize(rows)
+        assert s.total_pairs == 5
+        assert s.measured_pairs == 1
+        assert s.recall_at_class == 1.0  # 1/1, baseline-* not in denominator
+        assert s.precision == 1.0
+        assert s.baseline_unparseable == 1
+        assert s.baseline_compile_fail == 2
+        assert s.baseline_clean_fail == 1
+        # Pipeline-mode counters stay zero.
+        assert s.no_tests_emitted == 0
+        assert s.pipeline_errors == 0
+
 
 # ---------------------------------------------------------------------------
 # Integration test
@@ -201,18 +228,44 @@ _FAKE_EMISSIONS: dict[str, str] = {
 }
 
 
+def _copy_llm01_subset(dst_root: Path) -> Path:
+    """Copy the two LLM01 samples + their meta files into a fresh subdir.
+
+    Used by both integration tests so they only exercise samples whose
+    hand-authored fake emissions we control. Avoids re-breaking the
+    test every time a new sample is added under eval/samples/.
+    """
+    src = ENGINE_ROOT / "eval" / "samples" / "spring_ai"
+    dst = dst_root / "spring_ai"
+    dst.mkdir(parents=True, exist_ok=True)
+    for fname in (
+        "RestaurantPromptAssembler.java",
+        "EmailDraftingAssembler.java",
+        "restaurant_prompt_assembler.meta.yaml",
+        "email_drafting_assembler.meta.yaml",
+    ):
+        (dst / fname).write_text(
+            (src / fname).read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    return dst_root
+
+
 @pytest.mark.integration
 @_INTEGRATION_SKIP
-async def test_run_eval_against_real_samples_with_mock_pipeline(
+async def test_run_eval_pipeline_mode_against_llm01_subset(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """End-to-end run_eval with the pipeline mocked but the JVM real.
+    """End-to-end run_eval (pipeline mode) with pipeline.run mocked.
+
+    Scoped to the 2 LLM01 samples via a tmp-path subset so this test
+    is stable as more samples land under eval/samples/.
 
     Asserts:
-      - All measured pairs (one per sample) catch the injected risk
-      - All measured pairs pass on the clean variant
-      - The JSON output file is well-formed and contains the summary
+      - Both measured pairs catch the injected risk (recall=1.0)
+      - Both measured pairs pass on the clean variant (precision=1.0)
+      - The JSON output file is named `run-pipeline-<ts>.json` and
+        contains the summary intact
     """
 
     async def _fake_run(input_path: Any) -> _TestClassEmission:
@@ -229,7 +282,7 @@ async def test_run_eval_against_real_samples_with_mock_pipeline(
 
     monkeypatch.setattr("eval.runner.pipeline.run", _fake_run)
 
-    samples_dir = ENGINE_ROOT / "eval" / "samples"
+    samples_dir = _copy_llm01_subset(tmp_path / "samples")
     results_dir = tmp_path / "results"
 
     result = await run_eval(samples_dir=samples_dir, results_dir=results_dir)
@@ -245,9 +298,10 @@ async def test_run_eval_against_real_samples_with_mock_pipeline(
     )
     assert result.summary.precision == 1.0
 
-    # The JSON file appears with the summary intact.
-    out_files = list(results_dir.glob("run-*.json"))
-    assert len(out_files) == 1
+    out_files = list(results_dir.glob("run-pipeline-*.json"))
+    assert len(out_files) == 1, (
+        f"expected exactly one run-pipeline-*.json, got {[p.name for p in results_dir.glob('*')]}"
+    )
     payload = json.loads(out_files[0].read_text(encoding="utf-8"))
     assert payload["summary"]["recall_at_class"] == 1.0
     assert payload["summary"]["precision"] == 1.0
@@ -256,3 +310,115 @@ async def test_run_eval_against_real_samples_with_mock_pipeline(
         assert row["status"] == "measured"
         assert row["clean_outcome"] == "PASS"
         assert row["buggy_outcome"] == "FAIL"
+    # Pipeline-mode rows must not surface baseline-* counters.
+    assert payload["summary"]["baseline_unparseable"] == 0
+    assert payload["summary"]["baseline_compile_fail"] == 0
+    assert payload["summary"]["baseline_clean_fail"] == 0
+
+
+@pytest.mark.integration
+@_INTEGRATION_SKIP
+async def test_run_eval_baseline_mode_against_llm01_subset(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """End-to-end run_eval (baseline mode) with synthesize_baseline mocked.
+
+    Same LLM01 subset as the pipeline test. Uses the same hand-authored
+    "good tests" as the fake baseline emission — both modes route their
+    output through the same JVM gate, so a known-good test class catches
+    the LLM01 injection equally well.
+
+    Asserts the run-baseline-<ts>.json filename and that the new
+    baseline-* audit counters are present (and zero, since the fakes
+    are parseable + good).
+    """
+
+    async def _fake_synth_baseline(*, java_source, target_class_name, target_package, client):
+        java_text = _FAKE_EMISSIONS[f"{target_class_name}.java"]
+        return _BaselineEmission(
+            target_class_name=target_class_name,
+            java_source=java_text,
+            parseable=True,
+        )
+
+    monkeypatch.setattr("eval.runner.synthesize_baseline", _fake_synth_baseline)
+    # The runner builds an AgentClientFactory in baseline mode — patch
+    # `from_settings` so we don't need a real Anthropic key. The factory
+    # returned just needs `get(BASELINE)` and `aclose()`; the fake above
+    # ignores the client.
+    fake_factory = AsyncMock()
+    fake_factory.get = lambda role: AsyncMock()
+    fake_factory.aclose = AsyncMock()
+    monkeypatch.setattr(
+        "eval.runner.AgentClientFactory.from_settings",
+        lambda settings: fake_factory,
+    )
+
+    samples_dir = _copy_llm01_subset(tmp_path / "samples")
+    results_dir = tmp_path / "results"
+
+    result = await run_eval(
+        samples_dir=samples_dir, results_dir=results_dir, mode="baseline"
+    )
+
+    assert result.summary.total_pairs == 2
+    assert result.summary.measured_pairs == 2
+    assert result.summary.recall_at_class == 1.0
+    assert result.summary.precision == 1.0
+    # No baseline-* failures — the fakes are good.
+    assert result.summary.baseline_unparseable == 0
+    assert result.summary.baseline_compile_fail == 0
+    assert result.summary.baseline_clean_fail == 0
+
+    out_files = list(results_dir.glob("run-baseline-*.json"))
+    assert len(out_files) == 1, (
+        f"expected exactly one run-baseline-*.json, got {[p.name for p in results_dir.glob('*')]}"
+    )
+    payload = json.loads(out_files[0].read_text(encoding="utf-8"))
+    assert payload["summary"]["recall_at_class"] == 1.0
+    assert len(payload["samples"]) == 2
+
+
+@pytest.mark.integration
+@_INTEGRATION_SKIP
+async def test_run_eval_baseline_mode_routes_unparseable_to_audit_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A baseline emission with parseable=False must produce a
+    `baseline_unparseable` row, not a `pipeline_error`, and must NOT
+    invoke the JVM (early-exit before runner-helper)."""
+
+    async def _fake_synth_baseline_bad(*, java_source, target_class_name, target_package, client):
+        return _BaselineEmission(
+            target_class_name=target_class_name,
+            java_source="not java at all",
+            parseable=False,
+        )
+
+    monkeypatch.setattr("eval.runner.synthesize_baseline", _fake_synth_baseline_bad)
+    fake_factory = AsyncMock()
+    fake_factory.get = lambda role: AsyncMock()
+    fake_factory.aclose = AsyncMock()
+    monkeypatch.setattr(
+        "eval.runner.AgentClientFactory.from_settings",
+        lambda settings: fake_factory,
+    )
+
+    samples_dir = _copy_llm01_subset(tmp_path / "samples")
+    results_dir = tmp_path / "results"
+
+    result = await run_eval(
+        samples_dir=samples_dir, results_dir=results_dir, mode="baseline"
+    )
+
+    assert result.summary.total_pairs == 2
+    assert result.summary.measured_pairs == 0
+    assert result.summary.baseline_unparseable == 2
+    assert result.summary.recall_at_class == 0.0
+    for row in result.samples:
+        assert row.status == "baseline_unparseable"
+        # No JVM run was issued, so clean / buggy outcomes stay None.
+        assert row.clean_outcome is None
+        assert row.buggy_outcome is None
