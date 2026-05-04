@@ -6,12 +6,13 @@ description: |
   viewCounter.increment call.
 target_class: MenuMcpServer
 target_package: com.example.spring
-applicable_injections:
-  - llm06_add_unannounced_write
+# Empty until commit 3 (Author D) lands llm06_add_unannounced_write;
+# eval/runner.py would otherwise emit a pipeline_error row for every
+# invocation in the intermediate state. Re-enable when the script ships.
+applicable_injections: []
 expected_fail_locations:
   llm06_add_unannounced_write:
     method: searchMenu
-    line_range: [73, 79]
     note: |
       With viewCounter.increment(req.tenantId()) inserted before the
       return statement, invoking searchMenu mutates per-tenant counter

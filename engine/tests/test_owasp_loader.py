@@ -36,6 +36,23 @@ def test_load_owasp_invariant_mentions_breakout_payloads() -> None:
     assert "ignore" in invariant or "breakout" in invariant or "[/inst]" in invariant
 
 
+def test_load_owasp_llm06_exemplar_uses_qualified_nested_names() -> None:
+    """LLM06 sample collaborators are static-nested in MenuMcpServer.
+
+    The exemplar test must reference them as `MenuMcpServer.InMemoryViewCounter`
+    (not bare `InMemoryViewCounter`) so Sonnet copies the qualified-name
+    pattern. A silent regression that strips the qualification would
+    look fine in the YAML but cause every LLM06 generated test to
+    COMPILE_FAIL — the failure would surface as recall=0 with no
+    obvious cause.
+    """
+    catalog = load_owasp(REAL_CATALOG)
+    exemplar = catalog["LLM06_Excessive_Agency"].exemplar_test
+    assert "MenuMcpServer.InMemoryViewCounter" in exemplar
+    assert "MenuMcpServer.InMemoryMenuRepo" in exemplar
+    assert "MenuMcpServer.SearchRequest" in exemplar
+
+
 def test_load_owasp_missing_field_raises_valueerror(tmp_path: Path) -> None:
     """Synthetic YAML with `invariant_to_assert` missing → ValueError naming the field."""
     bad = tmp_path / "owasp.yaml"

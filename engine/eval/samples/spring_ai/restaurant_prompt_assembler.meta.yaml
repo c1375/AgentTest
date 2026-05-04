@@ -9,7 +9,6 @@ applicable_injections:
 expected_fail_locations:
   llm01_remove_sanitization:
     method: assemble
-    line_range: [22, 30]
     note: |
       With the sanitize() body neutralized to `return input;`, malicious
       input containing template-breakout payloads (e.g.,

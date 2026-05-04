@@ -10,7 +10,6 @@ applicable_injections:
 expected_fail_locations:
   llm01_remove_sanitization:
     method: drafts
-    line_range: [23, 32]
     note: |
       With sanitize() neutralized, either userIntent or recipient can
       carry a template-breakout payload that flows verbatim into the
