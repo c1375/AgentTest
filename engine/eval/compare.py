@@ -96,7 +96,7 @@ async def run_comparison(
 
     logger.info("[compare] running pipeline mode")
     pipeline_result = await run_eval(
-        samples_dir=samples_dir, results_dir=results_dir, mode="pipeline"
+        samples_dir=samples_dir, results_dir=results_dir, mode="pipeline-full"
     )
 
     logger.info("[compare] running baseline mode")

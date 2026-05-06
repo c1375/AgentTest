@@ -122,3 +122,44 @@ class ComparisonResult:
     pipeline: EvalResult
     baseline: EvalResult
     delta: ComparisonDelta
+
+
+@dataclass(frozen=True)
+class AblationRow:
+    """One row in the ablation matrix: a mode label + its EvalResult.
+
+    `mode` is loose-typed (str) rather than narrowed to runner.py's
+    EvalMode literal so this module stays free of import cycles —
+    eval/results.py is the dataclass home, eval/runner.py is where the
+    modes are defined and dispatched.
+    """
+    mode: str
+    result: EvalResult
+
+
+@dataclass(frozen=True)
+class AblationDelta:
+    """Adjacent-row delta in the ablation matrix.
+
+    `simpler_mode` is the row that omits the component being tested;
+    `fuller_mode` is the row that adds it. Deltas are fuller-minus-
+    simpler in percentage points. Per ASSIGNMENT.md, a component whose
+    delta is not "meaningful" gets dropped from the deliverable — the
+    delta is the data behind that judgement call.
+    """
+    simpler_mode: str
+    fuller_mode: str
+    component_added: str
+    recall_at_class_pp: float
+    precision_pp: float
+
+
+@dataclass(frozen=True)
+class AblationResult:
+    """Output of `eval/ablation.py`. Carries all rows in matrix order
+    (simplest → fullest) plus adjacent-row deltas. Headline artifact
+    for the S4 / Week-7 check-in.
+    """
+    timestamp_utc: str
+    rows: list[AblationRow]
+    deltas: list[AblationDelta]

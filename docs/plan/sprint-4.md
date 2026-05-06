@@ -137,16 +137,37 @@ section.
 
 ### 3. Ablation matrix = 4 rows on the full 15-sample set
 
-1. **Baseline** (single-prompt, no analyzer/retrieval/validator)
-2. **Analyzer + raw site** (no retrieval — generator gets only
-   site source; tests whether retrieval helps at all)
-3. **Analyzer + OWASP catalog retrieval** (tests whether OWASP
-   catalog retrieval helps over no-retrieval)
-4. **Full system** (analyzer + OWASP retrieval + validator gate)
+| # | Mode (`run_eval(mode=...)`) | Analyzer | OWASP retrieval | Validator gate |
+|---|---|---|---|---|
+| 1 | `baseline`                | ✗ | ✗ | ✗ |
+| 2 | `pipeline-analyzer-only`  | ✓ | ✗ | **✗** |
+| 3 | `pipeline-no-retrieval`   | ✓ | ✗ | ✓ |
+| 4 | `pipeline-full`           | ✓ | ✓ | ✓ |
 
-Validator gate is implicit in rows 2–4; eval reports both
-pre-validator emit count and post-validator survivor count so
-ship-bad-tests rate is derivable per row (decision #4 below).
+Each adjacent-row delta isolates exactly one added component:
+
+- **1 → 2**: does the analyzer + risk-targeted prompt help over the
+  single-prompt baseline?
+- **2 → 3**: does the validator gate help on top of the analyzer?
+- **3 → 4**: does OWASP catalog retrieval help on top of the gated
+  analyzer?
+
+Why this differs from `docs/project_plan.md` §5: the original
+matrix had pattern retrieval as a 4th independent dimension. With
+pattern retrieval deferred to S5 (decision #2 above), "Analyzer +
+OWASP retrieval" and "Full system" would be identical rows. Moving
+the validator gate from "always-on" (project_plan §5's implicit
+assumption) to "the dimension exposed by row 2 vs row 3" keeps the
+matrix at 4 distinct rows AND lets the validator's marginal value
+be measured directly — which is exactly what the failure-mode
+narrative from S3 needs.
+
+Eval reports per-row recall, precision, and ship-bad-tests rate
+(decision #4). Ship-bad-tests is what makes row 2 (no gate)
+informative: it should look better than baseline on ship-bad-tests
+because the analyzer narrows the test target, but worse than rows
+3–4 because uncompilable / clean-failing tests aren't being
+filtered out.
 
 ### 4. Headline metrics = recall + ship-bad-tests rate (derived)
 

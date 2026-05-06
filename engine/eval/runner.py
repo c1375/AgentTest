@@ -73,7 +73,21 @@ from eval.results import EvalResult, SampleResult, SampleStatus, SummaryStats  #
 
 logger = logging.getLogger(__name__)
 
-EvalMode = Literal["pipeline", "baseline"]
+EvalMode = Literal[
+    "pipeline-full",            # analyzer + OWASP retrieval + validator gate
+    "pipeline-no-retrieval",    # analyzer, no retrieval, validator gate ON
+    "pipeline-analyzer-only",   # analyzer, no retrieval, NO validator gate
+    "baseline",                 # single-prompt, no analyzer/retrieval/validator
+]
+
+
+# Map an ablation mode to the pipeline.run flags it implies. Baseline
+# is excluded — it routes through `_measure_pair_baseline`, not pipeline.run.
+_PIPELINE_MODE_KWARGS: dict[str, dict[str, bool]] = {
+    "pipeline-full":           {"use_owasp_retrieval": True,  "use_validator_gate": True},
+    "pipeline-no-retrieval":   {"use_owasp_retrieval": False, "use_validator_gate": True},
+    "pipeline-analyzer-only":  {"use_owasp_retrieval": False, "use_validator_gate": False},
+}
 
 
 _REQUIRED_META_FIELDS = (
@@ -244,8 +258,12 @@ async def _measure_pair(
     clean_java_path: Path,
     test_fqn: str,
     target_class: str,
+    pipeline_kwargs: dict[str, bool] | None = None,
 ) -> SampleResult:
     """Run the pipeline + recall + precision for one (sample, injection).
+
+    `pipeline_kwargs` controls the ablation row — see
+    `_PIPELINE_MODE_KWARGS`. Defaults to the full pipeline.
 
     The whole body sits inside one broad try/except. **This is the only
     place a bare `except Exception:` is acceptable in the codebase**,
@@ -253,8 +271,9 @@ async def _measure_pair(
     pair must not abort the whole run. The error is recorded per-pair
     via `status="pipeline_error"`.
     """
+    pipeline_kwargs = pipeline_kwargs or _PIPELINE_MODE_KWARGS["pipeline-full"]
     try:
-        emission = await pipeline.run(clean_java_path)
+        emission = await pipeline.run(clean_java_path, **pipeline_kwargs)
 
         tests_emitted = len(emission.risks_covered)
         refused = len(emission.refused_sites)
@@ -395,14 +414,18 @@ async def _measure_pair_baseline(
 async def run_eval(
     samples_dir: Path = Path("eval/samples"),
     results_dir: Path = Path("eval/results"),
-    mode: EvalMode = "pipeline",
+    mode: EvalMode = "pipeline-full",
 ) -> EvalResult:
     """Run the eval harness across every (sample, applicable injection) pair.
 
-    `mode="pipeline"` runs the full AgentTest pipeline (analyzer ->
-    generator -> validator gate -> aggregator) per sample.
-    `mode="baseline"` runs the single-prompt baseline (one Sonnet call,
-    no analyzer, no validator gate, parse-check only).
+    Modes (S4 ablation matrix):
+      - `pipeline-full`: analyzer + OWASP retrieval + validator gate.
+      - `pipeline-no-retrieval`: analyzer + raw site, no OWASP retrieval,
+        validator gate still applied. Tests "does OWASP retrieval help
+        on top of the gate?"
+      - `pipeline-analyzer-only`: analyzer + raw site, no validator
+        gate. Tests "does the validator gate help on top of analyzer?"
+      - `baseline`: single Sonnet call, no analyzer/retrieval/validator.
 
     Paths default to relative `eval/...`, matching the README's
     instructions to invoke from `engine/`. They're resolved against
@@ -443,15 +466,7 @@ async def run_eval(
                 logger.info(
                     "[eval:%s] running %s / %s", mode, sample_id, injection_name
                 )
-                if mode == "pipeline":
-                    row = await _measure_pair(
-                        sample_id=sample_id,
-                        injection_name=injection_name,
-                        clean_java_path=clean_java_path,
-                        test_fqn=test_fqn,
-                        target_class=target_class,
-                    )
-                else:
+                if mode == "baseline":
                     assert baseline_client is not None  # narrowed by mode check above
                     row = await _measure_pair_baseline(
                         sample_id=sample_id,
@@ -461,6 +476,15 @@ async def run_eval(
                         target_class=target_class,
                         target_package=target_package,
                         baseline_client=baseline_client,
+                    )
+                else:
+                    row = await _measure_pair(
+                        sample_id=sample_id,
+                        injection_name=injection_name,
+                        clean_java_path=clean_java_path,
+                        test_fqn=test_fqn,
+                        target_class=target_class,
+                        pipeline_kwargs=_PIPELINE_MODE_KWARGS[mode],
                     )
                 rows.append(row)
     finally:
@@ -504,12 +528,18 @@ async def run_eval(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="AgentTest eval runner (pipeline or baseline mode)."
+        description="AgentTest eval runner (pipeline ablation modes + baseline)."
     )
     parser.add_argument(
-        "--baseline",
-        action="store_true",
-        help="Run the single-prompt baseline instead of the full pipeline.",
+        "--mode",
+        choices=[
+            "pipeline-full",
+            "pipeline-no-retrieval",
+            "pipeline-analyzer-only",
+            "baseline",
+        ],
+        default="pipeline-full",
+        help="Ablation row to run. Default: pipeline-full (analyzer + OWASP + validator).",
     )
     return parser.parse_args()
 
@@ -517,4 +547,4 @@ def _parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = _parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    asyncio.run(run_eval(mode="baseline" if args.baseline else "pipeline"))
+    asyncio.run(run_eval(mode=args.mode))

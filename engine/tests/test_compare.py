@@ -143,9 +143,9 @@ async def test_run_comparison_emits_comparison_file_with_both_modes(
 
     # Both modes were invoked, in pipeline-then-baseline order.
     assert fake_run_eval.await_count == 2
-    first_mode = fake_run_eval.await_args_list[0].kwargs.get("mode", "pipeline")
+    first_mode = fake_run_eval.await_args_list[0].kwargs.get("mode", "pipeline-full")
     second_mode = fake_run_eval.await_args_list[1].kwargs.get("mode")
-    assert first_mode == "pipeline"
+    assert first_mode == "pipeline-full"
     assert second_mode == "baseline"
 
     # The returned ComparisonResult carries both EvalResults verbatim.

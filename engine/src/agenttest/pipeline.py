@@ -36,6 +36,7 @@ from agenttest.analyzer.identify import AnalyzerInput, identify
 from agenttest.config import settings
 from agenttest.contracts import (
     Grounding,
+    OwaspEntry,
     RefusedSite,
     RiskSite,
     TestClassEmission,
@@ -61,8 +62,31 @@ def _infer_package(java_source: str) -> str:
     return m.group(1) if m else ""
 
 
-async def run(input_path: str | Path) -> TestClassEmission:
-    """Run the full S2 pipeline on `input_path` and return the emission."""
+async def run(
+    input_path: str | Path,
+    *,
+    use_owasp_retrieval: bool = True,
+    use_validator_gate: bool = True,
+) -> TestClassEmission:
+    """Run the pipeline on `input_path` and return the emission.
+
+    Two ablation knobs (S4):
+
+      - `use_owasp_retrieval=False` strips the OWASP catalog content
+        (description / invariant / exemplars) before the generator
+        sees it. The risk_id and title still pass through so the
+        site-vs-catalog pre-filter still works; the generator's
+        prompt just renders empty <invariant>/<exemplar_*> blocks
+        and has to infer the contract from the risk_id alone. This
+        is the "analyzer + raw site, no retrieval" ablation row.
+      - `use_validator_gate=False` skips the parse + run-on-clean
+        gate entirely. Generated tests pass through to the
+        aggregator unvalidated (`runs_clean_on_clean_input=False`).
+        Used to measure what the pipeline *would have* shipped
+        without the gate — feeds the ship-bad-tests-rate metric.
+
+    Both default to True, preserving the S3 behavior.
+    """
     path = Path(input_path)
     java_source = path.read_text(encoding="utf-8")
     logger.info("[pipeline] reading %s", path)
@@ -97,6 +121,27 @@ async def run(input_path: str | Path) -> TestClassEmission:
         client = factory.get(AgentRole.TEST_SYNTHESIZER)
         owasp_catalog = load_owasp(settings.configs_dir / "owasp.yaml")
         logger.info("[pipeline] loaded %d OWASP catalog entries", len(owasp_catalog))
+
+        if not use_owasp_retrieval:
+            # Strip the catalog content but keep the risk_id keys so the
+            # pre-filter ("do we have this risk at all?") stays
+            # behaviorally consistent. Title is preserved as a label;
+            # everything load-bearing for the generator (description,
+            # invariant, exemplars) goes empty.
+            owasp_catalog = {
+                rid: OwaspEntry(
+                    risk_id=rid,
+                    title=entry.title,
+                    description="",
+                    invariant_to_assert="",
+                    exemplar_java="",
+                    exemplar_test="",
+                )
+                for rid, entry in owasp_catalog.items()
+            }
+            logger.info(
+                "[pipeline] OWASP retrieval disabled — generator gets risk_id only"
+            )
 
         validated: list[ValidatedTest] = []
         refused: list[RefusedSite] = []
@@ -164,27 +209,40 @@ async def run(input_path: str | Path) -> TestClassEmission:
                     ))
                     continue
 
-                # validate_gate is sync (subprocess to JVM); wrap so the
-                # JVM compile+run doesn't stall the event loop. S3 will
-                # convert the subprocess itself to asyncio.create_subprocess_exec
-                # per engine/CLAUDE.md.
-                v = await asyncio.to_thread(
-                    validate_gate,
-                    generated,
-                    target_class_path=path,
-                    target_class_name=target_class_name,
-                    target_package=target_package,
-                )
-                if isinstance(v, ValidatorDrop):
-                    refused.append(RefusedSite(
-                        site=site,
-                        reason=v.reason,
-                        drop_category=v.category,
-                    ))
-                    continue
+                if use_validator_gate:
+                    # validate_gate is sync (subprocess to JVM); wrap so the
+                    # JVM compile+run doesn't stall the event loop. S3 will
+                    # convert the subprocess itself to asyncio.create_subprocess_exec
+                    # per engine/CLAUDE.md.
+                    v = await asyncio.to_thread(
+                        validate_gate,
+                        generated,
+                        target_class_path=path,
+                        target_class_name=target_class_name,
+                        target_package=target_package,
+                    )
+                    if isinstance(v, ValidatorDrop):
+                        refused.append(RefusedSite(
+                            site=site,
+                            reason=v.reason,
+                            drop_category=v.category,
+                        ))
+                        continue
+                else:
+                    # Bypass mode (S4 pipeline-analyzer-only ablation row):
+                    # accept the raw GeneratedTest. runs_clean_on_clean_input
+                    # is False because we never checked. The eval will
+                    # compile-and-run downstream and surface
+                    # would-have-shipped failures as ship_bad_tests_rate.
+                    v = ValidatedTest(
+                        test=generated,
+                        compiled_class_bytes=b"",
+                        runs_clean_on_clean_input=False,
+                    )
                 validated.append(v)
                 logger.info(
-                    "[validator] kept test for %s @ %s",
+                    "[validator] %s test for %s @ %s",
+                    "kept" if use_validator_gate else "bypassed",
                     risk_id,
                     site.method_name,
                 )
