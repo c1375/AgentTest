@@ -68,6 +68,15 @@ class SampleResult:
     recall_caught: bool
     precision_clean_pass: bool
     error: str | None
+    # S4 ship-bad-tests-rate metric: True iff this pair WOULD have
+    # shipped at least one test that fails on clean code, absent the
+    # validator gate. Sources by mode:
+    #   - pipeline modes with gate: any refused_site with drop_category
+    #     in {compile_fail, clean_fail} — the gate caught it.
+    #   - pipeline-analyzer-only: clean_outcome in {FAIL, COMPILE_FAIL}
+    #     — there was no gate, so the test slipped through.
+    #   - baseline: status in {baseline_compile_fail, baseline_clean_fail}.
+    would_have_shipped_broken: bool = False
 
 
 @dataclass(frozen=True)
@@ -76,6 +85,14 @@ class SummaryStats:
 
     Baseline-only counters default to 0 in pipeline-mode runs so the
     JSON shape is uniform across both modes.
+
+    `ship_bad_tests_rate` is the S4 ablation headline metric: % of
+    (sample, injection) pairs that WOULD have shipped a broken test
+    absent the validator gate. Denominator is `total_pairs` (every
+    pair attempted) — not `measured_pairs` — so the rate is comparable
+    across rows even when some pairs hit no_tests_emitted /
+    pipeline_error / baseline_unparseable. See `SampleResult.would_have_shipped_broken`
+    for the per-pair source-of-truth-by-mode.
     """
 
     total_pairs: int
@@ -87,6 +104,8 @@ class SummaryStats:
     baseline_unparseable: int = 0
     baseline_compile_fail: int = 0
     baseline_clean_fail: int = 0
+    ship_bad_tests_rate: float = 0.0
+    ship_bad_tests_count: int = 0
 
 
 @dataclass(frozen=True)

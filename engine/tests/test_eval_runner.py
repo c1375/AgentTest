@@ -49,6 +49,7 @@ def _row(
     status: str = "measured",
     recall_caught: bool = False,
     precision_clean_pass: bool = False,
+    would_have_shipped_broken: bool = False,
 ) -> SampleResult:
     """Build a minimal SampleResult for summary tests."""
     return SampleResult(
@@ -65,6 +66,7 @@ def _row(
         recall_caught=recall_caught,
         precision_clean_pass=precision_clean_pass,
         error=None if status != "pipeline_error" else "boom",
+        would_have_shipped_broken=would_have_shipped_broken,
     )
 
 
@@ -136,6 +138,52 @@ class TestSummarize:
         assert s.measured_pairs == 0
         assert s.recall_at_class == 0.0
         assert s.precision == 0.0
+
+    def test_ship_bad_tests_rate_zero_when_nothing_shipped_bad(self) -> None:
+        rows = [
+            _row(recall_caught=True, precision_clean_pass=True),
+            _row(recall_caught=False, precision_clean_pass=True),
+            _row(status="no_tests_emitted"),
+        ]
+        s = _summarize(rows)
+        assert s.ship_bad_tests_rate == 0.0
+        assert s.ship_bad_tests_count == 0
+
+    def test_ship_bad_tests_rate_aggregates_per_pair(self) -> None:
+        """Two of four pairs would have shipped a broken test → 50%."""
+        rows = [
+            _row(recall_caught=True, would_have_shipped_broken=False),
+            _row(recall_caught=True, would_have_shipped_broken=True),
+            _row(recall_caught=True, would_have_shipped_broken=True),
+            _row(recall_caught=False, would_have_shipped_broken=False),
+        ]
+        s = _summarize(rows)
+        assert s.ship_bad_tests_count == 2
+        assert s.ship_bad_tests_rate == 0.5
+
+    def test_ship_bad_denominator_is_total_pairs_not_measured(self) -> None:
+        """Ship-bad rate stays comparable across ablation rows even
+        when some pairs hit non-measured statuses, by using
+        `total_pairs` as the denominator (not `measured_pairs`)."""
+        rows = [
+            _row(would_have_shipped_broken=True),                    # measured + bad
+            _row(status="no_tests_emitted",
+                 would_have_shipped_broken=True),                    # not measured but counted
+            _row(status="pipeline_error"),                           # not measured, not bad
+        ]
+        s = _summarize(rows)
+        assert s.measured_pairs == 1
+        assert s.ship_bad_tests_count == 2
+        # 2/3, not 2/1 (which would happen if denominator were measured).
+        assert s.ship_bad_tests_rate == round(2 / 3, 10) or abs(
+            s.ship_bad_tests_rate - 2 / 3
+        ) < 1e-10
+
+    def test_ship_bad_tests_rate_with_zero_total_yields_zero(self) -> None:
+        """No rows at all → 0.0 rate, no ZeroDivisionError."""
+        s = _summarize([])
+        assert s.ship_bad_tests_rate == 0.0
+        assert s.ship_bad_tests_count == 0
 
     def test_baseline_audit_counters_track_per_status(self) -> None:
         """Baseline-mode failure modes are counted in their own fields and
@@ -268,7 +316,7 @@ async def test_run_eval_pipeline_mode_against_llm01_subset(
         contains the summary intact
     """
 
-    async def _fake_run(input_path: Any) -> _TestClassEmission:
+    async def _fake_run(input_path: Any, **_kwargs: Any) -> _TestClassEmission:
         path = Path(input_path)
         java_source = _FAKE_EMISSIONS[path.name]
         target_class = path.stem

@@ -154,6 +154,7 @@ async def run_ablation(
             f"  {r.mode:28} "
             f"Recall@class={s.recall_at_class * 100:5.1f}% "
             f"| Precision={s.precision * 100:5.1f}% "
+            f"| Ship-bad={s.ship_bad_tests_rate * 100:5.1f}% "
             f"| measured={s.measured_pairs}/{s.total_pairs}"
         )
     print()

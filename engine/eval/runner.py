@@ -141,6 +141,15 @@ def _summarize(results: list[SampleResult]) -> SummaryStats:
         recall = sum(1 for r in measured if r.recall_caught) / n_measured
         precision = sum(1 for r in measured if r.precision_clean_pass) / n_measured
 
+    # ship-bad-tests rate: how often this mode would have shipped a
+    # test that fails on clean code, absent the validator gate.
+    # Denominator is `total` (all attempted pairs) rather than
+    # `measured` so the rate stays comparable across ablation rows
+    # that have different measured-pair counts. See SampleResult and
+    # SummaryStats docstrings for the per-mode source-of-truth.
+    ship_bad_count = sum(1 for r in results if r.would_have_shipped_broken)
+    ship_bad_rate = ship_bad_count / total if total > 0 else 0.0
+
     return SummaryStats(
         total_pairs=total,
         measured_pairs=n_measured,
@@ -151,6 +160,8 @@ def _summarize(results: list[SampleResult]) -> SummaryStats:
         baseline_unparseable=bl_unparseable,
         baseline_compile_fail=bl_compile_fail,
         baseline_clean_fail=bl_clean_fail,
+        ship_bad_tests_rate=ship_bad_rate,
+        ship_bad_tests_count=ship_bad_count,
     )
 
 
@@ -191,6 +202,10 @@ def _baseline_audit_row(
     distort recall / precision but the comparison report can still
     call them out — see eval/results.py for the rationale.
     """
+    # baseline_compile_fail / baseline_clean_fail are exactly the
+    # "would-have-shipped a broken test" cases. Unparseable doesn't
+    # count: there was no test source to ship.
+    would_ship_bad = status in ("baseline_compile_fail", "baseline_clean_fail")
     return SampleResult(
         sample_id=sample_id,
         injection_name=injection_name,
@@ -202,6 +217,7 @@ def _baseline_audit_row(
         recall_caught=False,
         precision_clean_pass=False,
         error=None,
+        would_have_shipped_broken=would_ship_bad,
     )
 
 
@@ -277,6 +293,15 @@ async def _measure_pair(
 
         tests_emitted = len(emission.risks_covered)
         refused = len(emission.refused_sites)
+        # In gated pipeline rows (3-4), the validator drops would-be
+        # broken tests with these categories. Counting those gives the
+        # "would have shipped" signal. In ungated row 2, this list is
+        # empty (validator never ran) and the broken-on-clean signal
+        # comes from clean_outcome below.
+        bad_dropped = any(
+            r.drop_category in ("compile_fail", "clean_fail")
+            for r in emission.refused_sites
+        )
 
         if tests_emitted == 0:
             return SampleResult(
@@ -290,6 +315,7 @@ async def _measure_pair(
                 recall_caught=False,
                 precision_clean_pass=False,
                 error=None,
+                would_have_shipped_broken=bad_dropped,
             )
 
         injection_cls = INJECTIONS_BY_NAME.get(injection_name)
@@ -312,6 +338,13 @@ async def _measure_pair(
             test_fqn=test_fqn,
         )
 
+        # Would-have-shipped-broken signal:
+        #  - bad_dropped: validator caught a bad test (gated rows 3-4)
+        #  - clean_outcome != PASS: bad test slipped through (ungated row 2)
+        # Combined with `or` because both can be true on the same row in
+        # principle, though rows 3-4 produce only post-gate emissions
+        # whose tests pass on clean by construction.
+        bad_shipped = clean_result.outcome != "PASS"
         return SampleResult(
             sample_id=sample_id,
             injection_name=injection_name,
@@ -323,6 +356,7 @@ async def _measure_pair(
             recall_caught=buggy_result.outcome == "FAIL",
             precision_clean_pass=clean_result.outcome == "PASS",
             error=None,
+            would_have_shipped_broken=bad_dropped or bad_shipped,
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception("[eval] error on %s / %s", sample_id, injection_name)
@@ -509,7 +543,9 @@ async def run_eval(
         f"Eval complete ({mode}): {summary.measured_pairs}/{summary.total_pairs} "
         f"measured pairs | "
         f"Recall@class={summary.recall_at_class * 100:.1f}% | "
-        f"Precision={summary.precision * 100:.1f}%"
+        f"Precision={summary.precision * 100:.1f}% | "
+        f"Ship-bad={summary.ship_bad_tests_rate * 100:.1f}% "
+        f"({summary.ship_bad_tests_count}/{summary.total_pairs})"
     )
     if mode == "baseline":
         print(
