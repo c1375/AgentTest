@@ -48,6 +48,15 @@ CONVENTIONS:
     NOT shorten the package, do NOT guess the constructor based on
     the snippet. Call the method named in `<target_method_name>` on
     that exact instance.
+  - **Only reference Java symbols (classes, methods, fields, inner
+    types) that appear verbatim in `<target_source>` or are part of
+    the JDK / JUnit 5 / AssertJ / Spring AI / LangChain4j / MCP public
+    APIs.** Do NOT invent inner classes, fields, or helper methods on
+    the target class. If a symbol you would need is not visible in the
+    target source, refuse via the refusal license below rather than
+    hallucinating one — a test that references a non-existent symbol
+    will fail to compile and be dropped by the validator gate, costing
+    a recall opportunity for nothing.
   - Output a SINGLE @Test method body. NOT a full class. The
     aggregator wraps surviving methods into a class.
   - The test must be self-contained: any input fixtures (e.g., the
