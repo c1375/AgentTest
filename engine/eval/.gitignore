@@ -1,2 +1,8 @@
 # Eval run outputs are reproducible from the inputs; not committed.
+# Exception: the canonical Week-6 comparison JSONs (the triple linked
+# from the root README as Sprint-3 evidence) are force-added — graders
+# need them to verify numbers without re-running ~$0.60 of API calls.
 results/*.json
+!results/comparison-2026-05-06T19-26-58.json
+!results/run-pipeline-2026-05-06T19-20-58.json
+!results/run-baseline-2026-05-06T19-26-58.json

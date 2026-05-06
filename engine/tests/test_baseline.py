@@ -78,6 +78,24 @@ def test_extract_java_treats_unfenced_output_as_java() -> None:
     assert _extract_java(raw) == "class T {}"
 
 
+def test_extract_java_recovers_from_unclosed_fence() -> None:
+    """Real failure mode from the 2026-05-06 baseline run: model emits
+    ```java<newline>class ...<newline> with no closing fence, and the
+    regex falls back to returning the whole output (which still starts
+    with the opening fence and won't parse as Java)."""
+    output = "```java\nclass T {\n  void m() {}\n}\n"
+    assert _extract_java(output) == "class T {\n  void m() {}\n}"
+
+
+def test_extract_java_recovers_from_unclosed_fence_with_dangling_backticks() -> None:
+    """Defensive: if the model emits an opening fence and a stray
+    trailing ``` on its own line (without a matching pair), strip both."""
+    output = "```java\nclass T {}\n```"
+    # NOTE: This *is* a closed fence and the primary regex matches —
+    # included to lock that behavior, not to test the recovery path.
+    assert _extract_java(output) == "class T {}"
+
+
 # ---------------------------------------------------------------------------
 # synthesize_baseline (integration)
 # ---------------------------------------------------------------------------

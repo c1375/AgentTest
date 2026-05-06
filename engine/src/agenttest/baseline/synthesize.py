@@ -72,13 +72,25 @@ def _extract_java(model_output: str) -> str:
 
     If one or more ``` ``` fences are present, return the contents of
     the *longest* one (the one most likely to contain the actual class
-    rather than a snippet from the model's preamble). If no fence is
-    present, treat the whole output as Java.
+    rather than a snippet from the model's preamble). If only a
+    partial fence is present (an opening ```java with no closing ```,
+    sometimes seen when the model considers `}` end-of-output and
+    forgets to close), strip the opening fence line and any trailing
+    ``` token. If no fence is present at all, treat the whole output
+    as Java.
     """
     matches = _FENCE_RE.findall(model_output)
     if matches:
         return max(matches, key=len).strip()
-    return model_output.strip()
+
+    text = model_output.strip()
+    if text.startswith("```"):
+        nl = text.find("\n")
+        text = text[nl + 1 :] if nl != -1 else text[3:]
+        text = text.lstrip("\n")
+    if text.endswith("```"):
+        text = text[: -len("```")].rstrip()
+    return text.strip()
 
 
 def _response_text(response: object) -> str:

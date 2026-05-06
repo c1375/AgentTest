@@ -24,14 +24,20 @@ agents:
 
   # Single-prompt baseline for the eval comparison. Same Java input,
   # no retrieval / analyzer / per-risk loop. The eval harness calls
-  # this via `POST /generate/baseline`. max_tokens raised to 4096 in
-  # S3 — the Step 0 smoke (docs/plan/sprint-3.md) showed the response
-  # truncates at 2048 mid-method, which would unfairly tank baseline
-  # recall via accidental COMPILE_FAIL.
+  # this via `POST /generate/baseline`. max_tokens history:
+  #   - S3 Step 0:  2048 → truncated mid-method.
+  #   - S3 Step 4:  4096 → still truncated mid-class (after final
+  #                 method's `}` but before the class's `}`) on
+  #                 4 of 6 samples in the 2026-05-06 first comparison
+  #                 run, producing baseline_unparseable rows.
+  #   - 2026-05-06: 8192 — verbose multi-method baseline output
+  #                 with JavaDoc / DisplayName decorations fits
+  #                 inside this budget. Higher would mask capability
+  #                 with budget; lower understates baseline.
   baseline:
     provider: anthropic
     model: claude-sonnet-4-6
-    max_tokens: 4096
+    max_tokens: 8192
     temperature: 0.3
     enabled: true
 
