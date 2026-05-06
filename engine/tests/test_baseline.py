@@ -89,7 +89,7 @@ package com.example.spring;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class FooSecurityGenTest {
+class FooAgentGenTest {
     @Test
     void smoke() {
         assertThat(true).isTrue();
@@ -112,7 +112,7 @@ async def test_synthesize_baseline_extracts_fence_and_parses() -> None:
 
     assert isinstance(result, BaselineEmission)
     assert result.target_class_name == "Foo"
-    assert "class FooSecurityGenTest" in result.java_source
+    assert "class FooAgentGenTest" in result.java_source
     assert "```" not in result.java_source, "fence must be stripped"
     assert result.parseable is True
 
@@ -130,7 +130,7 @@ async def test_synthesize_baseline_accepts_unfenced_java() -> None:
     )
 
     assert result.parseable is True
-    assert "class FooSecurityGenTest" in result.java_source
+    assert "class FooAgentGenTest" in result.java_source
 
 
 async def test_synthesize_baseline_concatenates_multi_text_blocks() -> None:
@@ -152,7 +152,7 @@ async def test_synthesize_baseline_concatenates_multi_text_blocks() -> None:
     )
 
     assert result.parseable is True
-    assert "class FooSecurityGenTest" in result.java_source
+    assert "class FooAgentGenTest" in result.java_source
 
 
 async def test_synthesize_baseline_flags_unparseable_output() -> None:
@@ -188,7 +188,7 @@ async def test_synthesize_baseline_passes_target_package_into_prompt() -> None:
     user_msg = client.complete.await_args.kwargs["messages"][0]["content"]
     assert "com.example.spring" in user_msg
     assert "Foo" in user_msg
-    assert "FooSecurityGenTest" in user_msg
+    assert "FooAgentGenTest" in user_msg
     assert "Mockito" in user_msg, "no-Mockito constraint must be present per Step 0"
 
 

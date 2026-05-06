@@ -129,7 +129,7 @@ def _build_header(
     )
     return (
         "/*\n"
-        f" * AgentTest-generated security tests for {target_class_name}.\n"
+        f" * AgentTest-generated agent tests for {target_class_name}.\n"
         " *\n"
         " * OWASP risks covered:\n"
         f"{risks}\n"
@@ -149,7 +149,7 @@ def _indent(text: str, prefix: str) -> str:
 
 
 def _output_path_for(input_dir: str, target_class_name: str) -> str:
-    return f"{input_dir}/{target_class_name}SecurityGenTest.java"
+    return f"{input_dir}/{target_class_name}AgentGenTest.java"
 
 
 def aggregate(
@@ -168,7 +168,7 @@ def aggregate(
         Surviving tests from the validator gate.
     target_class_name
         Bare class name of the target (e.g., `RestaurantPromptAssembler`).
-        The emitted class is named `<target_class_name>SecurityGenTest`.
+        The emitted class is named `<target_class_name>AgentGenTest`.
     target_package
         Package name for the emitted class. Should match the target's
         package so the test can `new <target_class_name>()` without
@@ -181,7 +181,7 @@ def aggregate(
         into the emission for the CLI's `write_text(...)` call.
     """
     refused_sites = refused_sites if refused_sites is not None else []
-    test_class_name = f"{target_class_name}SecurityGenTest"
+    test_class_name = f"{target_class_name}AgentGenTest"
 
     risks_covered: list[OwaspRiskId] = []
     seen_risk: set[OwaspRiskId] = set()

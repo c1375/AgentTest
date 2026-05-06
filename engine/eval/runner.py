@@ -106,7 +106,7 @@ def _resolve_clean_java_path(meta_path: Path, target_class: str) -> Path:
 
 
 def _test_fqn(target_package: str, target_class: str) -> str:
-    name = f"{target_class}SecurityGenTest"
+    name = f"{target_class}AgentGenTest"
     return f"{target_package}.{name}" if target_package else name
 
 

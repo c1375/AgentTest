@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.prompt.Prompt;
 
-class RestaurantPromptAssemblerSecurityGenTest {
+class RestaurantPromptAssemblerAgentGenTest {
 
     @Test
     void rejectsTemplateBreakoutInUserQuery() {

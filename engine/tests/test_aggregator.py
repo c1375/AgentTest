@@ -52,7 +52,7 @@ def test_aggregate_merges_methods_and_dedups_imports() -> None:
 
     # Class name + package
     assert "package com.example.spring;" in src
-    assert "class RestaurantPromptAssemblerSecurityGenTest {" in src
+    assert "class RestaurantPromptAssemblerAgentGenTest {" in src
 
     # Both methods present
     assert "rejectsBreakoutA" in src
@@ -70,7 +70,7 @@ def test_aggregate_merges_methods_and_dedups_imports() -> None:
 
     # The original `import` lines should NOT appear inside the method
     # bodies — they got hoisted to the file's import block.
-    method_region = src.split("class RestaurantPromptAssemblerSecurityGenTest {", 1)[1]
+    method_region = src.split("class RestaurantPromptAssemblerAgentGenTest {", 1)[1]
     assert "import " not in method_region
 
 
@@ -95,7 +95,7 @@ def test_aggregate_empty_validated_emits_explanatory_class() -> None:
 
     assert emission.risks_covered == []
     src = emission.java_source
-    assert "class FooSecurityGenTest {" in src
+    assert "class FooAgentGenTest {" in src
     assert "no tests survived" in src.lower()
     # No method bodies.
     assert "@Test" not in src

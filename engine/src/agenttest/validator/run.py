@@ -71,11 +71,11 @@ def wrap_test_method(
 
     Returns `(java_source, fully_qualified_class_name)`.
 
-    The class is named `<TargetClass>SecurityGenTest`. The package
+    The class is named `<TargetClass>AgentGenTest`. The package
     matches the target so the test can `new <TargetClass>()` without
     an extra import (Java imports the same-package class implicitly).
     """
-    test_class_name = f"{target_class_name}SecurityGenTest"
+    test_class_name = f"{target_class_name}AgentGenTest"
     fqn = f"{target_package}.{test_class_name}" if target_package else test_class_name
 
     package_line = f"package {target_package};\n\n" if target_package else ""

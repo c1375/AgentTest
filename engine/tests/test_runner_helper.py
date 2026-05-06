@@ -29,8 +29,8 @@ from eval.injections import Llm01RemoveSanitization  # noqa: E402
 
 RUNNER_DIR = ENGINE_ROOT / "eval" / "runner-helper"
 SAMPLE_PATH = ENGINE_ROOT / "eval" / "samples" / "spring_ai" / "RestaurantPromptAssembler.java"
-TEST_CLASS_PATH = RUNNER_DIR / "smoke" / "RestaurantPromptAssemblerSecurityGenTest.java"
-TEST_CLASS_FQN = "com.example.spring.RestaurantPromptAssemblerSecurityGenTest"
+TEST_CLASS_PATH = RUNNER_DIR / "smoke" / "RestaurantPromptAssemblerAgentGenTest.java"
+TEST_CLASS_FQN = "com.example.spring.RestaurantPromptAssemblerAgentGenTest"
 
 
 def _runner_helper_ready() -> bool:

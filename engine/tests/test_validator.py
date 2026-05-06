@@ -78,9 +78,9 @@ def test_wrap_test_method_emits_package_and_class() -> None:
         target_package="com.example.spring",
     )
     assert "package com.example.spring;" in src
-    assert "class RestaurantPromptAssemblerSecurityGenTest {" in src
+    assert "class RestaurantPromptAssemblerAgentGenTest {" in src
     assert "@Test void t() {}" in src
-    assert fqn == "com.example.spring.RestaurantPromptAssemblerSecurityGenTest"
+    assert fqn == "com.example.spring.RestaurantPromptAssemblerAgentGenTest"
 
 
 def test_wrap_test_method_handles_default_package() -> None:
@@ -90,7 +90,7 @@ def test_wrap_test_method_handles_default_package() -> None:
         target_package="",
     )
     assert "package " not in src
-    assert fqn == "FooSecurityGenTest"
+    assert fqn == "FooAgentGenTest"
 
 
 # --- run_on_clean (integration, requires JDK + helper) ---------------------

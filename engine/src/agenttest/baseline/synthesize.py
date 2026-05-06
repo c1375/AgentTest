@@ -59,7 +59,7 @@ BASELINE_PROMPT_TEMPLATE: str = (
     "compile.\n"
     "  - Place the test class in the package `{target_package}` so it "
     "can construct {target_class_name} without an explicit import.\n"
-    "  - The test class name must be `{target_class_name}SecurityGenTest`.\n"
+    "  - The test class name must be `{target_class_name}AgentGenTest`.\n"
     "  - Output only the Java source, optionally wrapped in a single "
     "```java ... ``` block. No prose before or after.\n\n"
     "Target class:\n\n"

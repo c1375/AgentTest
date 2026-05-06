@@ -2,7 +2,29 @@
 
 ## 1. Project title
 
-**AgentTest** — security-aware unit test generator for Java AI agent code.
+**AgentTest** — agent-aware unit test generator for Java AI agent code.
+
+The generated tests cover three classes of invariants that general Java
+test generators (TestSpark, ChatUniTest, Diffblue, etc.) miss because
+they have no agent taxonomy and no Spring-AI / LangChain4j / MCP
+knowledge:
+
+1. **Safety** (OWASP-anchored) — prompt injection, sensitive-data
+   leakage, multi-tenant boundary violations, excessive tool agency.
+2. **Agent-pattern correctness** — tool description vs. implementation
+   conformance, prompt-template stability under refactor, RAG-context
+   handling.
+3. **Reliability** — retry / circuit-breaker boundaries, idempotency
+   under transient failure.
+
+OWASP is the **evaluation ground truth**: the eval harness only scores
+risks that can be objectively synthesized via deterministic injection
+(§ 5), which is the safety category. The other two categories ride on
+the same pipeline (analyzer → retrieval → generator → validator) and are
+exercised in the test set, but they do not contribute to the headline
+recall / precision number — keeping the primary metric model-as-judge-
+free is non-negotiable per the assignment. The generator's coverage is
+broader than the eval's score; that asymmetry is intentional.
 
 ## 2. Target user, workflow, and business value
 
@@ -15,16 +37,28 @@ the deliverable, never sees the grader, and never enters the eval set**;
 AgentTest is evaluated only on synthesized samples (see § 5).
 
 **Recurring task.** Writing unit tests for newly written or modified agent
-code. The painful subset is *security-relevant* tests: tests that catch
-prompt-injection vectors in template assembly, tool-schema/implementation
-mismatches, sensitive-data leakage into prompts or logs, multi-tenant
-boundary violations, and retry / circuit-breaker misconfigurations. These
-are precisely the categories in OWASP Top 10 for LLM Applications, OWASP
-LLMSVS, and OWASP Top 10 for Agentic AI. General-purpose AI test
-generators (TestSpark, MutGen, ChatUniTest, Diffblue) optimize for line
-coverage and mutation score on generic code; they have no risk taxonomy
-and no Spring-AI-specific knowledge, so they consistently miss this class
-of bug.
+code. The painful subset is *agent-specific* tests — invariants a general
+Java test generator does not understand:
+
+- **Safety** (OWASP-anchored): prompt-injection vectors in template
+  assembly, sensitive-data leakage into prompts or logs, multi-tenant
+  boundary violations, tool-description / implementation drift that
+  amounts to excessive agency.
+- **Agent-pattern correctness**: tool schema vs. implementation
+  conformance, prompt-template stability across refactors, RAG-context
+  invariants (only retrieved context reaches the model).
+- **Reliability**: retry / circuit-breaker misconfiguration, idempotency
+  under transient failure.
+
+The safety bullet aligns precisely with OWASP Top 10 for LLM Applications,
+OWASP LLMSVS, and OWASP Top 10 for Agentic AI — and is what we use for
+**objective evaluation** (§ 5), because OWASP risks are the subset that
+can be synthesized as deterministic ground truth. The other two
+categories ride on the same pipeline. General-purpose AI test generators
+(TestSpark, MutGen, ChatUniTest, Diffblue) optimize for line coverage
+and mutation score on generic code; they have no agent taxonomy and no
+Spring-AI / LangChain4j / MCP knowledge, so they consistently miss this
+class of bug.
 
 **Where the workflow begins and ends.** The workflow begins when the
 developer points AgentTest at a Java class implementing agent logic
@@ -38,13 +72,16 @@ section requires this control to be explicit.
 
 **Why better performance on this workflow matters.** Agent code is
 disproportionately exposed to a class of bugs that traditional Java code
-is not — prompt injection, tool abuse, sensitive-data leakage, multi-
-tenant boundary failures. These bugs are also disproportionately *invisible*
-to traditional test suites (which test functional correctness, not
-adversarial robustness). Closing the gap between "what general AI test
-generators write" and "what an agent codebase actually needs to test"
-saves the developer hours per week of writing risk-specific tests by
-hand and lowers the probability of an OWASP-class bug shipping unnoticed.
+is not — prompt injection, tool-contract drift, sensitive-data leakage,
+multi-tenant boundary failures, retry / idempotency violations under
+transient failure. These bugs are also disproportionately *invisible* to
+traditional test suites (which test functional correctness, not
+adversarial robustness or agent-pattern conformance). Closing the gap
+between "what general AI test generators write" and "what an agent
+codebase actually needs to test" saves the developer hours per week of
+writing these tests by hand and lowers the probability of an
+agent-class bug — safety, correctness, or reliability — shipping
+unnoticed.
 
 ## 3. Problem statement and GenAI fit
 
@@ -189,13 +226,13 @@ JUnit 5 source written to user-specified path
    input (means the assertion is wrong, not just the code is risky).
 
 5. **Aggregator.** Collect surviving test methods into one class with
-   a stable name (`<TargetClass>SecurityGenTest.java`), proper imports,
+   a stable name (`<TargetClass>AgentGenTest.java`), proper imports,
    and a header comment listing OWASP risk IDs covered.
 
 ### What the user sees and does
 
 **Primary surface (grader-facing): a CLI.**
-`python -m agenttest.cli generate path/to/Foo.java [--out FooSecurityGenTest.java]`
+`python -m agenttest.cli generate path/to/Foo.java [--out FooAgentGenTest.java]`
 reads the Java source, streams progress lines while the pipeline runs
 (`analyzing → retrieving → generating → validating`), and writes one
 JUnit 5 test class. The README walks the grader through one risk-injected

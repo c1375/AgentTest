@@ -186,7 +186,7 @@ package com.example.spring;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RestaurantPromptAssemblerSecurityGenTest {
+class RestaurantPromptAssemblerAgentGenTest {
 
     @Test
     void rejectsTemplateBreakoutInUserQuery() {
@@ -207,7 +207,7 @@ package com.example.spring;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class EmailDraftingAssemblerSecurityGenTest {
+class EmailDraftingAssemblerAgentGenTest {
 
     @Test
     void rejectsTemplateBreakoutInUserIntent() {
@@ -274,7 +274,7 @@ async def test_run_eval_pipeline_mode_against_llm01_subset(
         target_class = path.stem
         return _TestClassEmission(
             target_class_name=target_class,
-            output_path=str(path.parent / f"{target_class}SecurityGenTest.java"),
+            output_path=str(path.parent / f"{target_class}AgentGenTest.java"),
             java_source=java_source,
             risks_covered=["LLM01_Prompt_Injection"],
             refused_sites=[],

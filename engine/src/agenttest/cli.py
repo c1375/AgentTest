@@ -17,7 +17,7 @@ from agenttest import pipeline
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
-    help="Security-aware unit test generator for Java AI agent code.",
+    help="Agent-aware unit test generator for Java AI agent code.",
 )
 
 
@@ -44,10 +44,10 @@ def generate(
         None,
         "--out",
         help="Output path for the generated JUnit test class. "
-        "Defaults to <input_dir>/<TargetClass>SecurityGenTest.java.",
+        "Defaults to <input_dir>/<TargetClass>AgentGenTest.java.",
     ),
 ) -> None:
-    """Generate a JUnit 5 security test class for INPUT_PATH."""
+    """Generate a JUnit 5 agent test class for INPUT_PATH."""
     # Surface pipeline progress logs to the user. The pipeline emits
     # INFO-level lines like "[analyzer] found N risk site(s)"; in S3 these
     # become async events and this handler goes away.

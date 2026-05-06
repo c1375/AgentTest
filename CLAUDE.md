@@ -2,13 +2,29 @@
 
 Per-project instructions for Claude Code working in this repository.
 
-**AgentTest** is a Generative AI course final project (Week 4–8). It is a
-**security-aware unit test generator for Java AI agent code** — Spring AI,
+**AgentTest** is a Generative AI course final project (Week 4–8). It is an
+**agent-aware unit test generator for Java AI agent code** — Spring AI,
 LangChain4j, MCP server implementations. Input = a Java class implementing
 an agent pattern (prompt assembler, tool handler, MCP server, etc.). Output
-= a JUnit 5 test suite covering OWASP-aligned agent risks (prompt injection,
-tool schema mismatch, sensitive-data leakage, multi-tenant isolation,
-retry / circuit-breaker boundary).
+= a JUnit 5 test suite covering three classes of agent invariants:
+
+1. **Safety** (OWASP-anchored): prompt injection, sensitive-data leakage,
+   multi-tenant boundary, excessive tool agency.
+2. **Agent-pattern correctness**: tool schema vs. implementation conformance,
+   prompt-template stability, RAG-context handling.
+3. **Reliability**: retry / circuit-breaker boundaries, idempotency under
+   transient failure.
+
+OWASP is the **eval ground truth** — the synthetic-injection harness only
+scores risks in category (1), keeping the primary metric model-as-judge-
+free. Categories (2) and (3) ride on the same pipeline but are not part of
+the headline recall / precision number. See `docs/project_plan.md` § 1, § 5.
+
+Generated test class files are named `<TargetClass>AgentGenTest.java`. The
+baseline synthesizer's system prompt deliberately retains the narrower
+"security-focused Java test engineer" role — it simulates a developer
+using Claude alone with a security focus and is the fair-comparison
+baseline, not the project's positioning.
 
 The full design rationale lives in `docs/project_plan.md` (English) /
 `docs/project_plan.zh.md` (Chinese) — read it before making non-trivial decisions.

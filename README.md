@@ -1,6 +1,6 @@
 # AgentTest
 
-Security-aware JUnit test generator for Java AI agent code (Spring AI /
+Agent-aware JUnit test generator for Java AI agent code (Spring AI /
 LangChain4j / MCP). Final project for a Generative AI course.
 
 > **Status:** S2 complete; S3 in progress. The end-to-end pipeline
@@ -14,10 +14,12 @@ LangChain4j / MCP). Final project for a Generative AI course.
 ## What this is
 
 Given a Java class implementing AI-agent logic, AgentTest produces a JUnit 5
-test class that targets OWASP-aligned risks for LLM agents — prompt injection
-in template assembly, tool description / implementation mismatch, sensitive-
-data leakage, multi-tenant boundary violations, retry / circuit-breaker
-misconfigurations.
+test class targeting agent-specific invariants that general Java test
+generators miss — prompt injection in template assembly, tool description /
+implementation mismatch, sensitive-data leakage, multi-tenant boundary
+violations, retry / circuit-breaker misconfigurations. OWASP-anchored risks
+are the subset used as objective evaluation ground truth (see
+[`docs/project_plan.md`](docs/project_plan.md) § 1, § 5).
 
 **Generated tests are advisory only — a human must review every test
 before it lands.** No test is ever auto-merged.

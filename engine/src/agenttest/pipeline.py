@@ -51,7 +51,7 @@ _PACKAGE_RE = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.MULTILINE)
 
 
 def _output_path_for(input_path: Path, target_class_name: str) -> str:
-    return str(input_path.parent / f"{target_class_name}SecurityGenTest.java")
+    return str(input_path.parent / f"{target_class_name}AgentGenTest.java")
 
 
 def _infer_package(java_source: str) -> str:

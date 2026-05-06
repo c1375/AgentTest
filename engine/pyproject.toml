@@ -1,7 +1,7 @@
 [project]
 name = "agenttest"
 version = "0.1.0"
-description = "Security-aware unit test generator for Java AI agent code (Spring AI / LangChain4j / MCP)"
+description = "Agent-aware unit test generator for Java AI agent code — OWASP-anchored safety + agent-pattern correctness + reliability (Spring AI / LangChain4j / MCP)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

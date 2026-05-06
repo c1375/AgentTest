@@ -47,7 +47,7 @@ class _FakeMessage:
 
 
 # A known-good LLM01 test for the RestaurantPromptAssembler clean sample.
-# Mirrors engine/eval/runner-helper/smoke/RestaurantPromptAssemblerSecurityGenTest.java
+# Mirrors engine/eval/runner-helper/smoke/RestaurantPromptAssemblerAgentGenTest.java
 # but expressed as a method body, since the aggregator wraps it.
 _GOOD_TEST_BODY = (
     "@Test\n"
@@ -116,4 +116,4 @@ async def test_pipeline_end_to_end_on_clean_sample(monkeypatch: pytest.MonkeyPat
         f"expected no refused sites, got: {emission.refused_sites}"
     )
     assert "rejectsTemplateBreakoutInUserQuery" in emission.java_source
-    assert "class RestaurantPromptAssemblerSecurityGenTest {" in emission.java_source
+    assert "class RestaurantPromptAssemblerAgentGenTest {" in emission.java_source

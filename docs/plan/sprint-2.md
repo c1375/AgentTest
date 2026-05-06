@@ -321,7 +321,7 @@ pytest integration.
 `engine/src/agenttest/aggregator/emit.py` (~80 lines)
 
 - `def aggregate(validated: list[ValidatedTest], target_class_name: str) -> TestClassEmission`
-- Combines surviving methods into one `<TargetClass>SecurityGenTest` class
+- Combines surviving methods into one `<TargetClass>AgentGenTest` class
 - Deduplicates `import` statements (first-writer-wins on conflict, log it)
 - Header comment with covered OWASP IDs + the human-must-review reminder
 
