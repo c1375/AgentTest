@@ -1,391 +1,436 @@
-# Sprint 4 Plan
+# Sprint 4 Plan (Revised v2 — Pivot to Real-World Eval, Skill-Native)
 
-S4 closes the **Week-7 deliverable**: scaling AgentTest's evaluation
-from a 6-sample preview into a real 4-row ablation, plus polish for
-the grader-facing surface. After S3 we have 3 OWASP risks measured
-end-to-end on 6 samples with a working baseline endpoint, and the S3
-comparison surfaced 2 pipeline failure cases on `WeatherTool` and
-`EmailDraftingAssembler` — generator hallucinated inner-class
-references and wrong types on the target class itself.
+## TL;DR
 
-> Source-of-truth scoping line, copied from `docs/project_plan.md` § 8:
-> *"Test set to 30–50 cases. Full ablation matrix. Second-pass on
-> weakest risk categories. CLI polish. README first draft (clone →
-> run on one example). Pre-recorded demo clip captured."*
+S4 closes the **Week-7 deliverable** by pivoting from synthetic-injection
+eval on hand-crafted samples to a **real-world eval on Spring AI's
+official examples repo (`spring-projects/spring-ai-examples` @
+`2a6088d`)**, packaged as a **skill-native Claude Code skill**.
 
-This plan deviates from § 8 on three points:
+**Critical architectural decision (v2)**: the skill is **prompt-time
+augmentation**, not an external LLM service. SKILL.md instructs the
+user's existing Claude Code session to:
 
-1. **Sample count** lands at 15, not 30–50. project_plan §5 anticipated
-   this with the explicit out: *"if sample synthesis runs slow we
-   accept landing at the lower end of the range (~15 samples)."*
-   Authoring real Spring-AI / LangChain4j / MCP samples that satisfy
-   their injection regex is 1–2 hours each, not 30 minutes; 24 new
-   samples would consume the entire sprint and leave no time for the
-   ablation matrix or polish.
-2. **Ablation matrix** is **4 rows, not 5** (no agent-pattern retrieval
-   row). See "Why pattern retrieval defers to S5" below.
-3. **README "first draft"** was already shipped in S3 Step 7. S4
-   polishes (adds ablation table + worked example), not first-drafts.
+1. Run our analyzer CLI to identify agent-pattern sites in the target file
+2. Run our retrieval CLI to fetch the OWASP catalog entry for each risk
+3. Use these as grounding to write the JUnit test class — **the user's
+   Claude Code session writes the test, using its own LLM**
 
----
+**No `ANTHROPIC_API_KEY` needed.** The user's Claude Code session is
+the LLM. Our value-add is the structured OWASP grounding + AST-based
+site identification, not a separate LLM call.
 
-## Why this scope (S4 theory of change)
+The Phase 2 eval compares two paths in the same Claude Code session:
+- **Vanilla**: user types `「帮我给 ChainWorkflow.java 写一个测试」` (no skill)
+- **Skill**: user types `/agenttest ChainWorkflow.java` (skill provides OWASP grounding)
 
-S3 proved the methodology generalizes: 3 risks, 6 samples, baseline
-comparison. The Week-6 finding was that pipeline and baseline both
-hit 4/6 catch on the full set, with **mutually-exclusive failure
-modes**:
+Both produce JUnit test classes; both are dropped into spring-ai-examples'
+`src/test/java/` and run via `mvn test` against (V_buggy, V_clean)
+variants. **The single delta** between the two paths is whether OWASP
+grounding helped Claude write tests that catch the LLM01 vulnerability.
 
-- Pipeline: 2 sites validator-dropped (output failed compile or
-  run-on-clean — generator hallucinated symbols not present on the
-  target class).
-- Baseline: 2 sites shipped wrong invariants (FAIL on clean code).
-
-S4's theory of change has two parts:
-
-1. **Scale exposes the differentiator.** With N=6 the headline is
-   "tied at 66.7%" — visually unimpressive even though the
-   failure-mode signal is real. With N=15 we get a 5×-larger
-   measurement of each mode's ship-bad-tests rate. Pipeline ≈ 0%
-   by validator-gate construction; baseline was 33% on S3. Even
-   with N=15, that 33pp delta is a clear statistical signal.
-
-2. **Anti-hallucination prompt constraint should reduce pipeline's
-   validator-drop rate.** The S3 drops were "generator hallucinated
-   `WeatherTool.StubWeatherClient`" and "wrong types in
-   `EmailDraftingAssembler`" — the generator referenced symbols
-   not visible in the target source. Tightening the generator
-   system prompt to explicitly disallow this is a one-line edit
-   that gets measured naturally by the S4 ablation run; no extra
-   experiment needed.
-
-The 4-row ablation matrix tests whether each component
-(analyzer, OWASP catalog retrieval, validator gate) **measurably
-helps** — per assignment requirement to drop components that
-don't.
+The original S4 plan (4-row synthetic ablation matrix on N=15 fixtures)
+is **superseded**. Most of the engine's generator / pipeline / validator
+code is **demoted to "synthetic safety-net only"** — see § "Existing
+commit disposition" for what stays / demotes / promotes.
 
 ---
 
-## Why pattern retrieval defers to S5
+## Why pivot (mid-S4 course correction)
 
-The first draft of this plan included a 5th ablation row for
-agent-pattern retrieval (1–3 similar Java class examples retrieved
-per (site, risk) pair via sentence-transformers embedding). On
-adversarial review this was cut for two reasons:
+Four concerns surfaced during S4 sample expansion:
 
-1. **Pattern retrieval is the wrong fix for the observed pipeline
-   failures.** The S3 drops were "generator referenced
-   `StubWeatherClient`" — i.e., **invented inner classes that don't
-   exist on the target class**. Pattern retrieval provides examples
-   of *similar but different* classes; it doesn't constrain the
-   generator to the target's actual API. The right fix is a
-   tighter system prompt + the analyzer's existing site source
-   (already passed in). This is decision **#5 below**.
-2. **Engineering cost vs. proven value is poorly balanced for
-   S4.** Library bootstrap (30 patterns across 3 stacks) +
-   embedding pipeline + retrieval module + wiring + tests ≈ 3 days
-   — half the sprint. ASSIGNMENT.md says "drop RAG sources that
-   don't measurably help" — but the assignment wants us to *test*
-   sources we ship, not ship sources we suspect won't help. With
-   the prompt-tightening alternative cheaper and more directly
-   targeted at the observed failure mode, S4 ships without
-   pattern retrieval.
+1. **Self-validation problem.** We wrote samples knowing what bug to
+   inject, then tested that we catch the bug we knew about. Closed
+   loop, weak external credibility.
+2. **Validator gate's classpath is fixture-specific.** Our
+   runner-helper has 4 hand-written Spring AI stubs. A real Spring AI
+   user compiles against actual Spring AI jars via mvn — our validator
+   gate is testing a world the user never lives in.
+3. **Product surface unclear.** A FastAPI server isn't a user-facing
+   artifact. "How would a Spring AI dev actually use this?" had no
+   concrete answer until skill packaging.
+4. **Skill design philosophy mismatch (v1 → v2).** A Claude Code skill
+   is prompt-time augmentation that guides the user's existing LLM
+   session, not an external service that calls out to its own LLM.
+   Our v1 plan was "skill → CLI → engine → Anthropic API call" which
+   defies skill conventions and forces a second API key. v2 picks
+   architecture B: skill provides grounding, user's Claude Code
+   session writes the test. No second API key, cleaner ablation,
+   skill-native.
 
-S5 (Week 8) revisits pattern retrieval if the S4 ablation shows
-OWASP-only RAG is insufficient, OR if the assignment grader
-specifically asks about the second retrieval source. Until then
-it's a documented deferral, not a forgotten one.
+The pivot trades a 4-row ablation matrix on N=15 synthetic samples for
+a smaller real-world eval (N=1, stretch to N=2-3) + a deployable
+skill. Methodological rigor is preserved by mechanical clean-vs-buggy
+mvn test pass/fail as the ground truth — **no human eval, no
+model-as-judge** (CLAUDE.md rule 6 still holds).
 
 ---
 
 ## Locked decisions
 
-### 1. Sample count = 15 (5 per risk × 3 risks)
+### 1. Real-world target = ChainWorkflow.java (anchor) + stretch candidates
 
-9 new samples join the existing 6: 3 new LLM01 + 3 new LLM02 +
-3 new LLM06. Per-risk counts give us:
-- Per-risk recall variance band: with N=5 per risk, sample
-  resolution is 20pp per risk — coarse but lets us spot a
-  catastrophic per-risk regression.
-- Cross-risk consistency: same prompt against three invariant
-  shapes, measured at the same N, lets us see whether one risk
-  underperforms the other two.
+- **Anchor**: `spring-projects/spring-ai-examples` @ commit `2a6088d`
+  → `agentic-patterns/chain-workflow/src/main/java/com/example/agentic/ChainWorkflow.java`
+  - 131 lines, 1 public method `chain(String userInput)`, 2 constructors, 1 `ChatClient` field
+  - **Real OWASP LLM01 vulnerability at line 121**: `String.format("{%s}\n {%s}", prompt, response)` —
+    user input + intermediate LLM output cycle into next step's prompt with **no sanitization**
+  - mvn build verified Phase 0: 35s, BUILD SUCCESS, 2 sources compiled, 0 existing tests
+- **Stretch** (only if Phase 2 anchor goes smoothly):
+  - LLM06 candidate: `routing-workflow/RoutingWorkflow.java` — orchestrator picks worker by LLM output
+  - LLM02 candidate: TBD — fall back to N=1 if no natural candidate
+- **No contortion**: if a risk has no natural OSS file, we run N=1 (LLM01 only)
 
-Authoring estimate: 1.5h per sample × 9 = ~13h = 1.7d. project_plan
-§5's explicit floor.
+### 2. Eval methodology = clean/buggy mvn test pass/fail with grep-based catch criterion
 
-### 2. Agentic_Multi_Tenant (4th risk) deferred to S5 with locked language
+For each (sample, mode) where `mode ∈ {vanilla, skill}`:
 
-Reason: multi-tenant samples need session-context plumbing
-(`TenantContext` or similar) that no canonical Spring AI pattern
-provides — we'd be inventing one to test against, which is
-circular.
+```
+V_buggy  = upstream code as-is (LLM01 bug at line 121)
+V_clean  = hand-fixed: sanitize(userInput) at start of chain(),
+           sanitize(response) at start of each loop iter
+           (committed separately so the diff is reviewable)
 
-The lightning slides + README ablation section will state this
-verbatim:
+tests A  = Claude Code session output WITH skill (analyzer + OWASP grounding injected)
+tests B  = Claude Code session output WITHOUT skill (vanilla baseline)
 
-> *"S4 covers LLM01 / LLM02 / LLM06 — the three risks that map to
-> existing Spring AI / LangChain4j / MCP idioms with no extra
-> framework plumbing. Multi-tenant boundary violations require
-> per-codebase session-context plumbing (TenantContext etc.); we
-> defer this to S5 to avoid testing AgentTest against a pattern
-> we invented ourselves."*
+Drop A into V_clean's src/test/java → mvn test → expected PASS  (precision)
+Drop A into V_buggy's src/test/java → mvn test → expected FAIL  (recall)
+Same for B.
+```
 
-This is a deliberate scope choice, not an oversight. Step 8
-(README polish) lifts this language verbatim into the ablation
-section.
+**Catch criterion (refined)**: a (test set, V_buggy) pair is "Catch" iff
+- `mvn test` exit code != 0 (FAIL or ERROR)
+- AND `mvn test` stdout contains at least one assertion-failure line
+  matching the OWASP-shape regex:
+  `(?i)(sanitize|injection|template.?breakout|system\s*:|prompt.?inject)`
+- This filters out "test was just wrong" failures from "test caught the OWASP risk"
+- A manual spot-check is allowed to **drop** false catches but not to
+  add new catches — keeps the metric mechanical-only
 
-### 3. Ablation matrix = 4 rows on the full 15-sample set
+**Precision criterion**: all tests in the set PASS on V_clean.
 
-| # | Mode (`run_eval(mode=...)`) | Analyzer | OWASP retrieval | Validator gate |
-|---|---|---|---|---|
-| 1 | `baseline`                | ✗ | ✗ | ✗ |
-| 2 | `pipeline-analyzer-only`  | ✓ | ✗ | **✗** |
-| 3 | `pipeline-no-retrieval`   | ✓ | ✗ | ✓ |
-| 4 | `pipeline-full`           | ✓ | ✓ | ✓ |
+Headline = (catch ∧ precision) per mode.
 
-Each adjacent-row delta isolates exactly one added component:
+### 3. Custom OWASP mutator = skipped
 
-- **1 → 2**: does the analyzer + risk-targeted prompt help over the
-  single-prompt baseline?
-- **2 → 3**: does the validator gate help on top of the analyzer?
-- **3 → 4**: does OWASP catalog retrieval help on top of the gated
-  analyzer?
+PIT default mutators don't match OWASP-class issues; custom mutators are ~3d
+of bytecode work not justified for course timeline. mvn test on clean/buggy
+is the only required mechanical metric.
 
-Why this differs from `docs/project_plan.md` §5: the original
-matrix had pattern retrieval as a 4th independent dimension. With
-pattern retrieval deferred to S5 (decision #2 above), "Analyzer +
-OWASP retrieval" and "Full system" would be identical rows. Moving
-the validator gate from "always-on" (project_plan §5's implicit
-assumption) to "the dimension exposed by row 2 vs row 3" keeps the
-matrix at 4 distinct rows AND lets the validator's marginal value
-be measured directly — which is exactly what the failure-mode
-narrative from S3 needs.
+### 4. Safety net = S3 synthetic eval kept at N=6 (no extension to N=15)
 
-Eval reports per-row recall, precision, and ship-bad-tests rate
-(decision #4). Ship-bad-tests is what makes row 2 (no gate)
-informative: it should look better than baseline on ship-bad-tests
-because the analyzer narrows the test target, but worse than rows
-3–4 because uncompilable / clean-failing tests aren't being
-filtered out.
+The S3 6-sample synthetic comparison (`4/6 vs 4/6` with mutually-exclusive
+failure modes) is preserved verbatim as README "Methodology validation".
+If Phase 2 produces "tied or worse" real-world numbers, this section
+provides the controlled-experiment counterpart.
 
-### 4. Headline metrics = recall + ship-bad-tests rate (derived)
+**No extension to N=15.** The original v1 plan called for 9 new
+synthetic samples (~1.7d) to reach N=15. Under v2 architecture, synthetic
+eval is the *backup* story, not the headline — investing 1.7d to scale
+the backup from N=6 to N=15 is poorly balanced against finishing the
+real-world eval and skill packaging. N=6 with the failure-mode
+differentiation is sufficient backup signal.
 
-S3 found that recall alone undersells the pipeline's failure-mode
-advantage. S4 reports both:
+### 5. Skill packaging = user-level, skill-native (architecture B)
 
-- **Recall@class** (per project_plan §5)
-- **Ship-bad-tests rate** = % of (sample, risk) pairs where the
-  mode emits a test that FAILS on clean code
+- Skill source at `claude-skill/SKILL.md` in AgentTest repo
+- `bin/install-skill.ps1` copies to `$env:USERPROFILE\.claude\skills\agenttest\`
+- After install, `/agenttest <file>` works in **any** Claude Code project
+- **SKILL.md is instructions for the user's Claude Code session, NOT a
+  wrapper around our engine's pipeline.** It says: "run analyze CLI,
+  run retrieve CLI, use the JSON outputs as grounding to write the test."
+- The user's Claude Code LLM does the actual test-writing.
 
-For pipeline modes, ship-bad-tests is **derived** from existing
-emission stats — `refused_sites` already records what the
-validator dropped. We thread one new field through: the
-**drop-reason category** (`compile_fail` / `clean_fail` / `other`)
-on each refusal, so the eval can count "would-have-shipped-broken"
-rates without a separate validator-bypass mode. This is cheaper
-than the bypass-mode alternative considered in the first draft
-(~1h vs ~0.5d) and uses real validator outcomes rather than
-hypotheticals.
+### 6. CLIs = stateless, no LLM (changed from v1)
 
-### 5. Generator prompt: explicit anti-hallucination constraint
+- `python -m agenttest.analyze <file>` — runs existing analyzer logic,
+  prints JSON site list to stdout. **No LLM call.**
+- `python -m agenttest.retrieve <risk_id>` — looks up OWASP catalog
+  YAML, prints JSON catalog entry to stdout. **No LLM call.**
+- **No `agenttest.cli` (the v1 full-pipeline CLI)** — pipeline is used
+  internally by synthetic eval, not by skill
+- **No `ANTHROPIC_API_KEY` needed by either CLI**
 
-`engine/src/agenttest/generator/prompt.py` system prompt gets one
-new bullet:
+### 7. Baseline = vanilla Claude Code session (NOT engine endpoint)
 
-> *"Only reference Java symbols (classes, methods, fields) that
-> appear verbatim in the target source. Do not invent inner
-> classes, fields, or methods on the target class. If a needed
-> symbol is missing, refuse with `refused: true` rather than
-> hallucinating it."*
+- **Locked baseline prompt (verbatim)**: 「帮我给 ChainWorkflow.java 写一个测试」
+- Captured by opening `spring-ai-examples` in Claude Code without
+  invoking the AgentTest skill, pasting the prompt above
+- Output saved verbatim + Claude Code version + model + timestamp →
+  `experiments/chainworkflow/baseline-context.md`
+- The engine's `/baseline/synthesize` endpoint is preserved **only** for
+  S3 synthetic-eval reproducibility, not used as the headline baseline
 
-This is a free code edit. The S4 ablation run measures whether it
-helped; if WeatherTool / EmailDraftingAssembler-style failures
-disappear, we keep it. If it has no effect, we keep it anyway —
-it can't hurt, and the assignment likes constraints that promote
-honesty.
+### 8. Symmetric tool access (clean ablation)
 
-### 6. CLI polish = Windows-first, single worked example
-
-Dev environment is Windows; we ship only `bin/setup.ps1` (not a
-sibling `setup.sh`) since shipping an untested bash script is
-worse than shipping documentation. README "Setup" lists the
-PowerShell commands and gives the equivalent Unix commands inline
-as documentation, with a note that the Unix path is unverified
-on this dev machine.
-
-One worked example (RestaurantPromptAssembler input → CLI command
-→ output JUnit test class) lands inline in README per
-project_plan §8.
-
-### 7. Demo clip — pre-recorded, single take, 30–60s
-
-Per project_plan §8: CLI run → generated test class shown → JVM
-compile + run on clean (PASS) and buggy (FAIL). Single take,
-no editing. Stored as `docs/demo.mp4` or linked to YouTube
-unlisted (size).
+Both vanilla and skill paths run inside the same Claude Code session,
+with identical tool access (Read, Grep, Bash, etc.). The only delta is
+whether the skill's SKILL.md instructions inject OWASP grounding via
+analyze + retrieve CLIs. **There is no tool-access asymmetry**. This
+makes the comparison a clean ablation: skill grounding is the only
+manipulated variable. Architecture A (v1 plan) had asymmetric tools
+(skill = one-shot CLI, vanilla = Claude with full tools) — v2 fixes this.
 
 ---
 
-## Implementation steps
+## Implementation phases
 
-### Step 1 — Sample expansion (9 new samples)
+### Phase 0 — Real-world target lock-in [DONE]
 
-`engine/eval/samples/spring_ai/<sample>.java` + `<sample>.meta.yaml`
-for 9 new samples:
-- 3 new LLM01 (joining the existing 2)
-- 3 new LLM02 (joining the existing 2)
-- 3 new LLM06 (joining the existing 2)
+- ✅ `spring-ai-examples` cloned to `E:\桌面\Generative AI\spring-ai-examples`, pinned to `2a6088d`
+- ✅ `chain-workflow` mvn build verified (35s, BUILD SUCCESS)
+- ✅ ChainWorkflow.java LLM01 vulnerability identified (line 121)
 
-Each meta.yaml lists `applicable_injections` from the existing 3
-injection scripts. Samples synthesized from public OSS Spring AI
-/ LangChain4j / MCP examples — no proprietary code.
+### Phase 1 — Stateless CLIs (~1d, $0)
 
-Tests: existing eval harness validates meta.yaml format; the
-preflight check from Step 1.5 catches injection-regex mismatches.
+**Goal**: expose existing analyzer + retrieval as standalone CLIs the skill
+can shell out to.
 
-### Step 1.5 — Sample preflight check
+Tasks:
 
-`engine/eval/preflight.py` — for each sample × each
-`applicable_injection` listed in meta.yaml, run the injection's
-`apply()` on the sample's clean Java and assert the output is
-**non-trivially different** from the input (not the empty diff
-case where the regex didn't match).
+1. **`engine/src/agenttest/analyze.py`** (new module, thin wrapper around
+   existing `analyzer/identify.py`):
+   - `python -m agenttest.analyze <file>` → JSON `{"sites": [{...}, ...]}`
+   - **No LLM call**
+   - Argparse + file read + analyzer invocation + json.dumps to stdout
+   - ~30 lines
 
-Run as a pytest in `tests/test_eval_preflight.py` so CI catches
-regressions, AND as a sanity-check before any ablation run.
+2. **`engine/src/agenttest/retrieve.py`** (new):
+   - `python -m agenttest.retrieve <risk_id>` → JSON catalog entry
+   - Loads `engine/configs/owasp.yaml`, looks up risk_id
+   - Output schema: `{"risk_id", "title", "description", "invariant", "exemplars"}`
+   - **No LLM call**
+   - ~30 lines
 
-A bad sample (injection doesn't actually mutate the source)
-silently produces `pipeline_error` rows in the eval and pollutes
-the headline numbers. S3 had one near-miss here. This step
-turns silent failure into a test-time hard error.
+3. **Verify analyzer recognizes ChainWorkflow's ChatClient API** (hidden blocker):
+   - `python -m agenttest.analyze <ChainWorkflow.java>`
+   - **Expected**: at least 1 prompt_assembler site identified
+   - **If 0 sites**: extend analyzer's prompt-assembler rules to recognize
+     Spring AI 1.0+ `chatClient.prompt(...).call().content()` fluent API
+     (current rules look for `PromptTemplate.create(Map.of(...))` per S2/S3)
+   - **This must pass before continuing to Phase 2** — without site identification,
+     the skill provides no value over vanilla
 
-Tests: `engine/tests/test_eval_preflight.py` — checks each sample
-on each applicable injection, fails the test if any (sample,
-injection) pair produces a no-op diff.
+4. **Tests**:
+   - `tests/test_cli_analyze.py` — invoke CLI on existing fixture
+     (RestaurantPromptAssembler), assert JSON shape + non-empty sites
+   - `tests/test_cli_retrieve.py` — same for retrieve, assert catalog entry shape
 
-### Step 2 — Generator prompt anti-hallucination constraint
+5. **`bin/swap-chainworkflow.ps1`**:
+   - Toggle ChainWorkflow.java between V_buggy (upstream) and V_clean
+     (our experiments/chainworkflow/ChainWorkflow_fixed.java)
+   - Idempotent: knows current state, swaps to other
+   - Used by Phase 2 mvn test runs
 
-`engine/src/agenttest/generator/prompt.py` — append the
-"only reference symbols visible in the target source" bullet
-(see decision #5).
+### Phase 2 — Real eval run (~0.5d, $0)
 
-Tests: existing generator-prompt assertions (the lock-in tests
-in `test_generator_synthesize.py` if any) updated to include the
-new bullet's substring.
+**Goal**: empirical comparison between vanilla and skill paths in the
+same Claude Code project.
 
-### Step 3 — Ablation harness (4-row mode routing)
+Tasks:
 
-`engine/eval/runner.py` extended with a `--mode` argument
-accepting:
-- `pipeline-full` (default; analyzer + OWASP retrieval +
-  validator gate)
-- `pipeline-no-retrieval` (analyzer + raw site, no OWASP
-  retrieval, validator gate still applied)
-- `pipeline-analyzer-only` (analyzer + raw site, no validator
-  gate — yes, this row tests the gate's value)
-- `baseline`
+1. **Author `ChainWorkflow_fixed.java`** (V_clean):
+   - Add `private static String sanitize(String input)` helper (same regex
+     as our LLM01 synthetic samples)
+   - Wrap `userInput` at start of `chain()` and `response` at end of loop body
+   - Live in `experiments/chainworkflow/` in AgentTest repo
+   - Commit separately for diff review
 
-Each emits to `run-<mode>-<ts>.json`.
+2. **Vanilla Claude Code session** (no skill, or skill installed but not invoked):
+   - Open `spring-ai-examples` in Claude Code
+   - Type **locked baseline prompt**: 「帮我给 ChainWorkflow.java 写一个测试」
+   - Save Claude's output verbatim → `experiments/chainworkflow/test_vanilla.java`
+   - Record metadata in `experiments/chainworkflow/baseline-context.md`:
+     - Date + time, Claude Code version, model, full transcript or screenshot
 
-`engine/eval/ablation.py` (new, sibling of `compare.py`):
-orchestrates all 4 modes back-to-back, emits one
-`ablation-<ts>.json` with per-row stats and per-(row, row+1)
-deltas.
+3. **Skill Claude Code session** (skill installed; install via Phase 3 Task 2):
+   - Same project, separate session
+   - Type: `/agenttest agentic-patterns/chain-workflow/src/main/java/com/example/agentic/ChainWorkflow.java`
+   - Skill follows SKILL.md instructions:
+     - Reads the file (Claude's Read tool)
+     - Calls `python -m agenttest.analyze <file>` via Bash → parses JSON site list
+     - For each unique risk_id in sites, calls `python -m agenttest.retrieve <risk_id>` → OWASP catalog
+     - Uses analyzer + retrieval outputs as grounding, writes JUnit 5 test class
+     - Prints to conversation, does NOT auto-write
+   - Save Claude's output → `experiments/chainworkflow/test_skill.java`
 
-Tests: extend `test_eval_runner.py` with mode-routing tests
-(no-LLM, monkey-patched).
+4. **mvn test on V_buggy** (current upstream state):
+   - Drop test_skill.java (renamed to ChainWorkflowAgentGenTest.java) into
+     `spring-ai-examples/agentic-patterns/chain-workflow/src/test/java/com/example/agentic/`
+   - `cd chain-workflow && ./mvnw test 2>&1 | tee mvn-skill-buggy.log`
+   - Apply catch criterion: grep stack trace for OWASP-shape regex
+   - Repeat with test_vanilla.java (rename, drop, run, log)
 
-### Step 4 — Ship-bad-tests metric + drop-reason threading
+5. **mvn test on V_clean**:
+   - `bin/swap-chainworkflow.ps1` → swaps ChainWorkflow.java to V_clean
+   - Repeat step 4 for both modes (separate logs)
+   - `bin/swap-chainworkflow.ps1` → swap back to V_buggy
 
-Three small changes:
+6. **Stretch (only if anchor passed clean)**: same flow on RoutingWorkflow.java for LLM06
 
-1. `engine/src/agenttest/contracts.py` — extend `RefusedSite` (or
-   the analogous tuple-shape) with a `drop_category` field:
-   `Literal["compile_fail", "clean_fail", "model_refused", "other"]`.
-2. `engine/src/agenttest/pipeline.py` — when validator drops a
-   test, classify the drop reason and stamp it on the refused-site
-   tuple before appending.
-3. `engine/eval/results.py` — add `ship_bad_tests_rate` to
-   `SummaryStats`. Definition: % of (sample, risk) pairs where
-   the mode emits a test that FAILS on clean code.
-   - Baseline: counted directly from `clean_outcome == "FAIL"`.
-   - Pipeline modes with validator gate: counted from refused-sites
-     with `drop_category in ("compile_fail", "clean_fail")` —
-     these would have shipped without the gate.
-   - Pipeline mode without validator gate
-     (`pipeline-analyzer-only`): direct count.
+7. **Record results**: `experiments/realworld-results.md` with table:
+   `(sample, mode, V_buggy outcome, V_clean outcome, catch-yes, precision-yes, headline)`
 
-Tests: extend `test_eval_runner.py` summary-math tests.
+**Cost: $0** (vanilla and skill both bill the user's Claude Code session,
+not our engine).
 
-### Step 5 — Real ablation run + analysis
+### Phase 3 — Skill packaging (~0.5-1d, $0)
 
-`py -3.13 eval/ablation.py` — full 4-row × 15-sample run.
+**Goal**: `/agenttest <file>` works in any Claude Code project after one install command.
 
-Cost budget per run: 4 rows × 15 × 1.3 risks × $0.07 + baseline
-$3 ≈ $8.50. **S4 cumulative budget cap: $40** (allows ~3
-iterations + headroom for debugging).
+Tasks:
 
-Output: `engine/eval/results/ablation-<ts>.json`.
+1. **`claude-skill/SKILL.md`**:
+   - Frontmatter: name `agenttest`, description tuned for explicit `/agenttest <file>` invocation
+     (capability boundary: "Java AI agent code — Spring AI / LangChain4j / MCP")
+   - Body: 4-step workflow
+     - Step 1: Read the target file
+     - Step 2: Run `python -m agenttest.analyze <file>`, parse JSON site list
+     - Step 3: For each risk_id, run `python -m agenttest.retrieve <risk_id>`
+     - Step 4: Write JUnit 5 test class using analyzer + retrieval as grounding
+       - Constraints: only reference symbols visible in target source; use Mockito
+         if class has DI-injected interface (e.g., ChatClient); test class name
+         `<TargetClass>AgentGenTest`
+   - Refusal license: "If 0 sites detected, say 'no agent-pattern sites in
+     this file' and stop"
+   - Rule 4 reminder: "Print to conversation; do NOT write to disk without
+     explicit user confirmation"
 
-**Component-drop rule per assignment:** if a row's recall
-improvement over the row above is not "meaningful" (qualitative,
-per ASSIGNMENT.md), the row is documented in the README as
-"tested, no measurable lift; dropped from the deliverable." We
-don't auto-drop in code — the row stays runnable for grader
-verification.
+2. **`bin/install-skill.ps1`**:
+   - Copy `claude-skill/*` to `$env:USERPROFILE\.claude\skills\agenttest\`
+   - Idempotent: detect existing install, prompt overwrite
+   - Verify `python -m agenttest.analyze --help` succeeds; warn if missing
 
-### Step 6 — CLI polish (Windows-first)
+3. **End-to-end smoke (in fresh Claude Code session, NOT our dev session)**:
+   - Install skill via PS1
+   - Open spring-ai-examples in Claude Code
+   - `/agenttest agentic-patterns/chain-workflow/src/main/java/com/example/agentic/ChainWorkflow.java`
+   - Verify Claude actually:
+     - Reads the file
+     - Calls analyze CLI
+     - Calls retrieve CLI for each risk_id
+     - Prints a JUnit test class to conversation
+   - This is the architecture-B integration test
 
-`bin/setup.ps1` — bootstrap `.env` from `.env.example` (prompt
-for `ANTHROPIC_API_KEY` interactively if not set), install deps,
-run `eval/runner-helper/setup.py`, run
-`pytest -m "not integration" -q` as a smoke test.
+### Phase 4 — README polish + demo clip (~1d, $0)
 
-README "Setup" section rewritten as a clone-to-first-run
-walkthrough using the PS script. The Unix-equivalent commands
-are listed inline as documentation only, with a "(not tested
-on this dev machine)" note.
+Tasks:
 
-### Step 7 — Demo clip
+1. **README** restructure:
+   - **Install** (top): clone → `bin/setup.ps1` → `bin/install-skill.ps1`
+   - **Demo**: skill walkthrough on ChainWorkflow.java (vanilla vs skill side-by-side)
+   - **Real-world eval results**: Phase 2 data table + commentary
+   - **Methodology validation** (safety net): S3 synthetic eval section
+   - **Architecture note**: skill is grounding-injection, not external LLM service;
+     no second API key needed
+   - **Rule 4 warning** prominent: "generated tests are advisory; review before merging"
+   - Locked baseline prompt cited in both Chinese and English (international graders)
 
-Pre-recorded ~30–60s screencast: CLI run on
-`RestaurantPromptAssembler` → generated test class shown → JVM
-compile + run on clean (PASS) and buggy (FAIL). Stored as
-`docs/demo.mp4` (committed if size permits, ~5MB max) or linked
-to YouTube unlisted.
+2. **Demo clip** (3-5 min, soft single take, light editing OK).
 
-### Step 8 — README polish (ablation table + worked example + locked language)
+   **The demo IS Phase 2's eval execution** — recorded as one Claude Code session
+   in spring-ai-examples (with skill installed).
 
-- Status block updated to "S4 complete; Week-7 evidence linked"
-- Add ablation table: 4 rows × Recall@class / Precision /
-  Ship-bad-tests / Cost per row
-- Add the worked example (RestaurantPromptAssembler input →
-  CLI command → output JUnit test class) inline as code blocks
-- Lift decision #2's multi-tenant defer language verbatim into
-  the ablation section
-- Link to `engine/eval/results/ablation-<ts>.json` (force-add
-  the canonical run via the same gitignore exception pattern
-  S3 used)
+   Sequence (estimated wall-clock with Claude response time):
+
+   ```
+   00:00  Open spring-ai-examples in Claude Code (skill already installed)
+   00:15  Vanilla shot:
+            Type: 「帮我给 ChainWorkflow.java 写一个测试」 (no skill invocation)
+            Claude responds (~30-60s think + write)
+            Save output → test_vanilla.java
+   01:30  Skill shot:
+            Type: /agenttest agentic-patterns/.../ChainWorkflow.java
+            Claude follows skill: analyze → retrieve → write (~30-60s)
+            Save output → test_skill.java
+   03:00  Drop both into src/test/java/com/example/agentic/, run ./mvnw test
+   03:45  Outcome shown side-by-side: which set caught the LLM01 bug
+   04:30  (Optional) Run swap-chainworkflow.ps1 → V_clean, re-run mvn test
+            → tests that don't false-positive go green
+   ```
+
+   Stored as `docs/demo.mp4` (committed if size permits, ~5-10MB) or YouTube
+   unlisted (link in README).
 
 ---
 
-## Sequenced timeline (~5 days)
+## Risk register
 
-| Step | What | Estimate | Depends on |
+| Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Step 1 | 9 new samples + meta.yaml | 1.7d | — |
-| Step 1.5 | Sample preflight check (ship-blocker) | 0.3d | Step 1 |
-| Step 2 | Generator anti-hallucination prompt | 0.1d | — |
-| Step 3 | Ablation harness (4-row routing) | 0.7d | — |
-| Step 4 | Ship-bad-tests metric + drop-reason threading | 0.6d | Step 3 |
-| Step 5 | Real ablation run + analysis | 0.5d | Steps 1.5, 4 |
-| Step 6 | CLI polish (PS-only) | 0.3d | — |
-| Step 7 | Demo clip | 0.2d | Step 6 |
-| Step 8 | README polish + locked multi-tenant text | 0.5d | Step 5 |
-| **Total** | | **~4.9d** | |
+| **Analyzer doesn't recognize ChainWorkflow's ChatClient API** | medium | **critical** | Phase 1 task 3 verifies before continuing. If 0 sites identified, extend analyzer rules to handle `chatClient.prompt(...).call().content()` fluent API. **Hidden blocker** — without this, skill provides no grounding over vanilla. |
+| Vanilla Claude already knows OWASP from training; skill grounding adds nothing | medium | high | Honest in README. Tied result is informative ("Claude already covers this risk class without our help"). Worth documenting either way. |
+| spring-ai-examples mvn build flakes (SNAPSHOT churn) | medium | high | Pinned commit `2a6088d`. Local dep cache after Phase 0. If build breaks mid-S4, fall back to last-known-good cached state. |
+| Catch criterion grep regex too strict (false-negatives real catches) | low | medium | Manual spot-check of failure traces in Phase 2. Tune regex if found wanting; allowed to drop false catches but not add new ones (mechanical-only constraint). |
+| Skill SKILL.md instructions confuse Claude (it doesn't follow steps) | medium | medium | Phase 3 e2e smoke catches this. If Claude skips analyze/retrieve calls, restructure SKILL.md to be more explicit. |
+| Phase 2 result: skill tied with or worse than vanilla | medium | medium | Safety net: README emphasizes synthetic-eval methodology validation + S3 two-failure-modes finding. Re-prompt + rerun Phase 2 within budget; tune skill grounding format if helpful. |
+| Skill auto-triggers on non-applicable code (e.g., generic Java) | low | low | SKILL.md description scoped to "Java AI agent (Spring AI / LangChain4j / MCP)" + explicit yield language. |
 
-Ablation row total: **4 rows × 15 samples** = 60 (sample, mode)
-pairs per ablation run, ~$8.50 each. **S4 LLM budget cap: $40
-cumulative.** S5 (Week 8) is final polish + lightning
-presentation — no new generator work expected.
+---
+
+## Cost + timeline
+
+| Phase | Duration | $ |
+|---|---|---|
+| 0 — target lock-in (DONE) | 0 | 0 |
+| 1 — stateless CLIs | ~1d | 0 |
+| 2 — real eval | ~0.5d | 0 |
+| 3 — skill packaging | ~0.5-1d | 0 |
+| 4 — README + demo | ~1d | 0 |
+| **Total** | **~3-3.5d** | **$0** |
+
+User's Claude Code subscription covers Phase 2's LLM calls (both vanilla and
+skill), not our engine. Architecture B eliminates ALL Anthropic API spend
+on AgentTest's side.
+
+S4 budget cap: $40 (essentially unspent — synthetic eval reruns from Phase 1.5
+preflight or Step 5 reruns are still allowed if needed).
+
+S5 (Week 8) = lightning slides + presentation; no new code.
+
+---
+
+## Existing commit disposition (architecture B)
+
+### Promoted to skill path (main eval)
+- `engine/src/agenttest/analyzer/` → exposed as `python -m agenttest.analyze`
+- `engine/src/agenttest/retrieval/` → exposed as `python -m agenttest.retrieve`
+- `engine/configs/owasp.yaml` → consumed by retrieve CLI
+
+### Demoted to synthetic-only safety net (still runnable, code intact)
+- `engine/src/agenttest/generator/` (used by `pipeline.run`)
+- `engine/src/agenttest/validator/` (used by `pipeline.run`)
+- `engine/src/agenttest/baseline/synthesize.py` (synthetic comparison only)
+- `engine/src/agenttest/pipeline.py` (synthetic-only entry point)
+- `engine/eval/runner.py` 4-row routing (synthetic ablation; not run in S4)
+- `engine/eval/preflight.py` (synthetic samples preflight)
+
+### Per-commit status
+
+| Commit | Subject | Status |
+|---|---|---|
+| `a77cece` | Step 2: anti-hallucination prompt | demoted (generator system prompt — synthetic-only) |
+| `a721f92` | Step 4a: drop-reason category | demoted (validator-gate accounting — synthetic-only) |
+| `f9fb513` | Step 3: 4-row ablation harness | demoted (synthetic ablation routing) |
+| `82ae81f` | Step 4b: ship-bad-tests rate | demoted (synthetic-only) |
+| `c0709b9` | Step 1.5: preflight ship-blocker | demoted (synthetic samples preflight) |
+| `1751fc4` | S4 plan v1 | superseded by this v2 plan |
+| `05cc580` | LLM01 sample 3 (RagContextBuilder) | **kept for git history only**; not invoked in v2 plan (synthetic stays at N=6) |
+| `6c8c7ec` | LLM01 sample 4 (PersonaPromptCustomizer) | **kept for git history only**; not invoked in v2 plan (synthetic stays at N=6) |
+
+**Nothing is deleted.** All synthetic-eval code stays runnable so the README
+"Methodology validation" section can be reproduced verbatim.
+
+### Honest framing for README
+
+> *AgentTest's S2-S4 work explored two distinct architectures: an
+> end-to-end pipeline that called Anthropic's API to generate tests
+> (synthetic-eval safety net), and a skill-native grounding approach
+> that injects OWASP context into the user's Claude Code session
+> (real-world eval main path). The skill-native approach is the
+> recommended user-facing surface — it composes naturally with Claude
+> Code, requires no separate API key, and isolates the value-add as
+> "structured OWASP grounding". The pipeline approach remains as a
+> controlled-experiment counterpart for methodology validation.*
