@@ -64,11 +64,12 @@ def generate(
     typer.echo(f"Risk sites found: {len(emission.refused_sites) + len(emission.risks_covered)}")
     typer.echo(f"Tests emitted:    {len(emission.risks_covered)}")
     typer.echo(f"Sites refused:    {len(emission.refused_sites)}")
-    for site, reason in emission.refused_sites:
+    for refused in emission.refused_sites:
+        site = refused.site
         typer.echo(
             f"  - {site.method_name} "
             f"({site.file_path}:{site.line_start}-{site.line_end}) "
-            f"[{site.site_kind}]: {reason}"
+            f"[{site.site_kind}/{refused.drop_category}]: {refused.reason}"
         )
     typer.echo("")
     typer.echo(

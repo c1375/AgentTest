@@ -21,6 +21,26 @@ SiteKind = Literal[
 ]
 
 
+# Why a single category enum: S4 ablation needs to compute
+# "ship-bad-tests rate" per pipeline mode, defined as the % of pairs
+# where the mode would have shipped a test that fails on clean code
+# absent the validator gate. Only `compile_fail` and `clean_fail` count
+# toward that metric — other drop reasons (model refused, no catalog
+# entry, API error, parse-check failure) didn't produce test code that
+# would have shipped. The category lets eval/results.py compute the
+# metric without inspecting free-text reason strings.
+DropCategory = Literal[
+    "no_catalog_entry",     # pre-LLM: site flagged a risk we have no OWASP entry for
+    "api_error",            # LLM call raised AnthropicError
+    "model_refused",        # generator returned `refused: true`
+    "parse_check_failed",   # validator: javalang couldn't parse the method body
+    "compile_fail",         # validator: javac failed on the wrapped class
+    "clean_fail",           # validator: test ran but failed/errored on the clean target
+    "runner_error",         # validator: runner-helper returned ERROR (timeout, missing toolchain)
+    "other",                # catch-all
+]
+
+
 @dataclass(frozen=True)
 class RiskSite:
     """Output of analyzer; input to retriever."""
@@ -101,10 +121,20 @@ class ValidatedTest:
 
 
 @dataclass(frozen=True)
+class RefusedSite:
+    """One refusal in the pipeline — site, human-readable reason, machine-
+    readable category. Replaced the (RiskSite, str) tuple in S4 to support
+    the ship-bad-tests-rate metric."""
+    site: RiskSite
+    reason: str
+    drop_category: DropCategory
+
+
+@dataclass(frozen=True)
 class TestClassEmission:
     """Output of aggregator; final pipeline output."""
     target_class_name: str
     output_path: str
     java_source: str
     risks_covered: list[OwaspRiskId]
-    refused_sites: list[tuple[RiskSite, str]]  # (site, reason) for refusals
+    refused_sites: list[RefusedSite]

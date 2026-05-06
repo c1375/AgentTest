@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 from agenttest.contracts import (
     OwaspRiskId,
-    RiskSite,
+    RefusedSite,
     TestClassEmission,
     ValidatedTest,
 )
@@ -157,7 +157,7 @@ def aggregate(
     target_class_name: str,
     target_package: str,
     *,
-    refused_sites: list[tuple[RiskSite, str]] | None = None,
+    refused_sites: list[RefusedSite] | None = None,
     output_path: str,
 ) -> TestClassEmission:
     """Combine surviving validated tests into a single Java class.

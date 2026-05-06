@@ -102,7 +102,7 @@ def test_aggregate_empty_validated_emits_explanatory_class() -> None:
 
 
 def test_aggregate_threads_refused_sites_through() -> None:
-    from agenttest.contracts import RiskSite
+    from agenttest.contracts import RefusedSite, RiskSite
 
     site = RiskSite(
         file_path="Foo.java",
@@ -113,14 +113,19 @@ def test_aggregate_threads_refused_sites_through() -> None:
         candidate_risks=["LLM01_Prompt_Injection"],
         snippet="",
     )
+    refused = RefusedSite(
+        site=site,
+        reason="model refused",
+        drop_category="model_refused",
+    )
     emission = aggregate(
         [],
         target_class_name="Foo",
         target_package="com.example",
         output_path="/tmp/out.java",
-        refused_sites=[(site, "model refused")],
+        refused_sites=[refused],
     )
-    assert emission.refused_sites == [(site, "model refused")]
+    assert emission.refused_sites == [refused]
 
 
 def test_aggregate_no_package_emits_no_package_line() -> None:

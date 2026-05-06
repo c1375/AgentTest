@@ -36,13 +36,14 @@ from agenttest.analyzer.identify import AnalyzerInput, identify
 from agenttest.config import settings
 from agenttest.contracts import (
     Grounding,
+    RefusedSite,
     RiskSite,
     TestClassEmission,
     ValidatedTest,
 )
 from agenttest.generator.synthesize import synthesize
 from agenttest.retrieval.owasp import load_owasp
-from agenttest.validator.gate import validate_gate
+from agenttest.validator.gate import ValidatorDrop, validate_gate
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ async def run(input_path: str | Path) -> TestClassEmission:
         logger.info("[pipeline] loaded %d OWASP catalog entries", len(owasp_catalog))
 
         validated: list[ValidatedTest] = []
-        refused: list[tuple[RiskSite, str]] = []
+        refused: list[RefusedSite] = []
 
         for site in sites:
             for risk_id in site.candidate_risks:
@@ -108,7 +109,11 @@ async def run(input_path: str | Path) -> TestClassEmission:
                         risk_id,
                         site.method_name,
                     )
-                    refused.append((site, f"no catalog entry for {risk_id}"))
+                    refused.append(RefusedSite(
+                        site=site,
+                        reason=f"no catalog entry for {risk_id}",
+                        drop_category="no_catalog_entry",
+                    ))
                     continue
 
                 grounding = Grounding(
@@ -144,11 +149,19 @@ async def run(input_path: str | Path) -> TestClassEmission:
                         type(exc).__name__,
                         exc,
                     )
-                    refused.append((site, f"{type(exc).__name__}: {exc}"))
+                    refused.append(RefusedSite(
+                        site=site,
+                        reason=f"{type(exc).__name__}: {exc}",
+                        drop_category="api_error",
+                    ))
                     continue
 
                 if generated.refused:
-                    refused.append((site, generated.refusal_reason or "model refused"))
+                    refused.append(RefusedSite(
+                        site=site,
+                        reason=generated.refusal_reason or "model refused",
+                        drop_category="model_refused",
+                    ))
                     continue
 
                 # validate_gate is sync (subprocess to JVM); wrap so the
@@ -162,8 +175,12 @@ async def run(input_path: str | Path) -> TestClassEmission:
                     target_class_name=target_class_name,
                     target_package=target_package,
                 )
-                if v is None:
-                    refused.append((site, "validator dropped"))
+                if isinstance(v, ValidatorDrop):
+                    refused.append(RefusedSite(
+                        site=site,
+                        reason=v.reason,
+                        drop_category=v.category,
+                    ))
                     continue
                 validated.append(v)
                 logger.info(

@@ -4,8 +4,10 @@ Order matters: parse-check is cheap (<10ms) and rejects obvious
 garbage; run-on-clean is slow (full JVM compile + JUnit launch) and
 verifies the test actually compiles, runs, and passes on the un-
 mutated target. A surviving test maps to a `ValidatedTest` with
-`runs_clean_on_clean_input=True`. A dropped test maps to `None` and
-the caller logs the reason.
+`runs_clean_on_clean_input=True`. A dropped test maps to a
+`ValidatorDrop` carrying both a human-readable reason and a
+machine-readable category — the latter feeds the eval's
+ship-bad-tests-rate metric (S4).
 
 `compiled_class_bytes` is set to empty bytes in S2 — the runner-helper
 doesn't return them and no downstream stage in S2 needs them. TODO(S3):
@@ -15,13 +17,23 @@ populate when the aggregator's classpath check needs them.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
-from agenttest.contracts import GeneratedTest, ValidatedTest
+from agenttest.contracts import DropCategory, GeneratedTest, ValidatedTest
 from agenttest.validator.parse import parse_check
 from agenttest.validator.run import run_on_clean, wrap_test_method
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ValidatorDrop:
+    """A non-PASS outcome from the gate, classified for downstream
+    eval math. `reason` is the human-readable explanation logged on
+    drop; `category` feeds the eval's ship-bad-tests-rate metric."""
+    category: DropCategory
+    reason: str
 
 
 def validate_gate(
@@ -30,22 +42,29 @@ def validate_gate(
     target_class_path: Path,
     target_class_name: str,
     target_package: str,
-) -> ValidatedTest | None:
-    """Run the parse and run-on-clean gates; return None to drop."""
+) -> ValidatedTest | ValidatorDrop:
+    """Run the parse and run-on-clean gates; return a ValidatedTest on
+    survive, a ValidatorDrop on drop."""
     if generated.refused:
         # Caller should have filtered already, but be defensive.
         logger.info(
             "[validator] skipping refused generation for %s",
             generated.risk_id,
         )
-        return None
+        return ValidatorDrop(
+            category="model_refused",
+            reason=generated.refusal_reason or "model refused",
+        )
 
     if not parse_check(generated.test_method_source):
         logger.info(
             "[validator] dropped %s: parse-check failed",
             generated.risk_id,
         )
-        return None
+        return ValidatorDrop(
+            category="parse_check_failed",
+            reason="parse-check failed",
+        )
 
     test_class_source, test_class_fqn = wrap_test_method(
         generated.test_method_source,
@@ -73,7 +92,17 @@ def validate_gate(
             generated.risk_id,
             test_class_source,
         )
-        return None
+        category: DropCategory
+        if result.outcome == "COMPILE_FAIL":
+            category = "compile_fail"
+        elif result.outcome == "FAIL":
+            category = "clean_fail"
+        else:  # ERROR
+            category = "runner_error"
+        return ValidatorDrop(
+            category=category,
+            reason=f"run-on-clean returned {result.outcome}",
+        )
 
     return ValidatedTest(
         test=generated,
