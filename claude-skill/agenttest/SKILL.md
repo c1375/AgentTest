@@ -28,7 +28,8 @@ Use the Read tool on `$ARGUMENTS`. Classify the agent pattern:
 
 | Pattern | Signal | Load these rule files |
 |---|---|---|
-| chain workflow / prompt assembler | iterates LLM calls (response cycles into next prompt) OR builds prompt from user input | `rules/patterns/chain-workflow.md` + `rules/owasp/llm01-prompt-injection.md` |
+| chain workflow / prompt assembler | iterates LLM calls in **fixed** steps (e.g., `for (String prompt : DEFAULT_SYSTEM_PROMPTS)`) OR single-shot prompt assembly | `rules/patterns/chain-workflow.md` + `rules/owasp/llm01-prompt-injection.md` |
+| iterative agent | **variable-step** LLM loop where the LLM's output controls the next iteration count or termination (orchestrator-workers, reflection, recursive advisors) | `rules/patterns/iterative-agent.md` + `rules/owasp/llm06-excessive-agency.md` |
 | tool handler / MCP server | `@Tool` annotation, MCP server tool registration, function calling | `rules/patterns/tool-handler.md` + `rules/owasp/llm06-excessive-agency.md` |
 | log handler | logs request / response / user-attributable data | `rules/patterns/log-handler.md` + `rules/owasp/llm02-sensitive-disclosure.md` |
 

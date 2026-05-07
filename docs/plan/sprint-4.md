@@ -1,4 +1,4 @@
-# Sprint 4 Plan (v3 — Skill-Native, License-Aware, 11 Files)
+# Sprint 4 Plan (v4 — Skill-Native, OWASP Agentic 2026-Aligned, 12 Files)
 
 ## TL;DR
 
@@ -21,11 +21,19 @@ validator pipeline + synthetic eval harness, ~5000 lines Python + ~200
 Java) was deleted in commit `99df6e0`. Pre-pivot code is recoverable
 from git history for archeology.
 
-The original v1 plan (4-row synthetic ablation matrix, N=15 fixtures)
-and v2 plan (skill + engine dual-track) are **superseded**. v3 reflects
-the user's "走 skill 路线 + 全删" decision and the adversarial-review
-findings (existing OWASP skills exist, 17-file structure was excessive,
-clear-solutions cannot be forked).
+v3→v4 evolution: a deeper round of research found the canonical OWASP
+**Top 10 for Agentic Applications 2026** (ASI01-ASI10), a strong
+inventory of Java targets in spring-ai-examples (12+ MCP examples,
+multiple iterative agent patterns), and confirmed **no Java RAG
+target** in the upstream repo. v4 drops RAG (no test target), adds
+`iterative-agent.md` (variable-iteration LLM loops, distinct from
+chain workflow), and extends `llm06-excessive-agency.md` to 5
+sub-sections including MCP tool poisoning per ASI04.
+
+The original v1 plan (4-row synthetic ablation matrix, N=15 fixtures),
+v2 plan (skill + engine dual-track), and v3 plan (11 files, no
+ASI mapping) are **superseded**. v4 reflects the user's "走 skill 路线
++ 全删" decision and three rounds of adversarial review.
 
 ---
 
@@ -99,21 +107,22 @@ deletes the engine and accepts N=1 anecdotal real-world result as the
 honest deliverable. The journey + skill design + Phase 2 data + README
 narrative are the project's contribution.
 
-### 3. Skill packaging = user-level, 11 files, no fork
+### 3. Skill packaging = user-level, 12 files, no fork
 
 - Skill source at `claude-skill/agenttest/`
 - Layout:
   ```
-  SKILL.md                                   (~150 lines, 7-step orchestrator)
+  SKILL.md                                   (~150 lines, 7-step orchestrator, 5-pattern classification)
   rules/general/                             (2 files)
     ├── attack-payload-assertions.md
     └── existing-test-awareness.md
   rules/owasp/                               (3 files)
-    ├── llm01-prompt-injection.md
+    ├── llm01-prompt-injection.md            (also covers ASI01 Goal Hijack)
     ├── llm02-sensitive-disclosure.md
-    └── llm06-excessive-agency.md
-  rules/patterns/                            (3 files)
-    ├── chain-workflow.md
+    └── llm06-excessive-agency.md            (5 sub-sections, covers ASI02/04/05/08)
+  rules/patterns/                            (4 files) ← +1 from v3
+    ├── chain-workflow.md                    (固定 N 步)
+    ├── iterative-agent.md                   ← NEW (变长 LLM loop)
     ├── tool-handler.md
     └── log-handler.md
   rules/java/                                (2 files)
@@ -122,6 +131,10 @@ narrative are the project's contribution.
   rules/post-generation/                     (1 file)
     └── verify.md
   ```
+- v3 → v4 added: `iterative-agent.md` (orchestrator-workers / reflection /
+  recursive advisors). v3 had 11 files; v4 has 12.
+- v3 dropped from plan: `rag-context-builder.md` (no Java target in
+  spring-ai-examples — only `kotlin/rag-with-kotlin/`).
 - **All content original to AgentTest.** `clear-solutions/unit-tests-skills`
   has no LICENSE file (verified 2026-05-06); `anthropics/skills` has no
   formal LICENSE file either. We **cannot fork** either repo's prose or
@@ -160,9 +173,10 @@ asymmetry.** Skill grounding is the only manipulated variable.
 
 Per adversarial review, existing skills cover OWASP audit / review:
 - [agamm/claude-code-owasp](https://github.com/agamm/claude-code-owasp) —
-  OWASP best practices across many languages
+  OWASP best practices across many languages (single ~21KB SKILL.md +
+  companion 26KB OWASP-2025-2026-Report.md)
 - [AgriciDaniel/claude-cybersecurity](https://github.com/AgriciDaniel/claude-cybersecurity) —
-  comprehensive cybersec code review
+  comprehensive cybersec code review (8 specialist agents)
 
 AgentTest fills the adjacent niche:
 - **JUnit test generation** (existing skills audit / review, don't generate tests)
@@ -173,6 +187,30 @@ AgentTest fills the adjacent niche:
 
 **README and SKILL.md explicitly cite related work.** No claim of OWASP
 novelty.
+
+### 7b. OWASP Agentic 2026 ASI mapping (added in v4)
+
+The canonical [OWASP Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
+released 2025-12 lists 10 risks (ASI01-ASI10). Our skill is testable
+against 6 of them via Java unit tests:
+
+| ASI | Name | Our coverage |
+|---|---|---|
+| ASI01 | Agent Goal Hijack | `rules/owasp/llm01-prompt-injection.md` (= LLM01 generalized for agents) |
+| ASI02 | Tool Misuse & Exploitation | `rules/owasp/llm06-excessive-agency.md` sub-sections 1-2 |
+| ASI03 | Identity & Privilege Abuse | **DEFERRED** (multi-tenant — locked decision earlier) |
+| ASI04 | Agentic Supply Chain Compromise | `rules/owasp/llm06-excessive-agency.md` sub-section 5 (MCP tool poisoning) |
+| ASI05 | Unexpected Code Execution | `rules/owasp/llm06-excessive-agency.md` sub-section 1 (description ↔ impl) |
+| ASI06 | Memory & Context Poisoning | **DEFERRED** (conversation history sanitization — future work) |
+| ASI07 | Insecure Inter-Agent Communication | `rules/patterns/iterative-agent.md` (orchestrator → worker prompt isolation) |
+| ASI08 | Cascading Agent Failures | `rules/owasp/llm06-excessive-agency.md` sub-section 4 (bounded loop) |
+| ASI09 | Human-Agent Trust Exploitation | **NOT TESTABLE** (UX, requires human study) |
+| ASI10 | Rogue Agents | **NOT TESTABLE** (emergent behavior) |
+
+**6/10 testable, 2 deferred, 2 not unit-testable.** Each `rules/owasp/`
+file opens with a one-line LLM Top 10 + Agentic 2026 dual-mapping line.
+`rules/patterns/` files don't carry ASI mapping (they're pattern
+recognition, not risk taxonomy).
 
 ### 8. Differentiator framing = "attack-payload assertions" (NOT "invariant tests")
 
@@ -250,13 +288,28 @@ Sequenced subtasks (do NOT skip steps):
      - Reports per-test outcomes
    - **If anything breaks, fix before continuing** — this validates the architecture
 
-3. **Remaining 6 files (~2h)**:
-   - `rules/owasp/llm02-sensitive-disclosure.md`
-   - `rules/owasp/llm06-excessive-agency.md`
-   - `rules/patterns/tool-handler.md`
-   - `rules/patterns/log-handler.md`
-   - `rules/general/attack-payload-assertions.md`
-   - `rules/general/existing-test-awareness.md`
+3. **Remaining 6 files + 1 new + LLM06 expansion (~5h, "B 选项")**:
+   - `rules/owasp/llm02-sensitive-disclosure.md` (~1h)
+   - **`rules/owasp/llm06-excessive-agency.md` ★ EXPANDED to 5 sub-sections (~2h)**:
+     1. Tool description ↔ implementation conformance (ASI02 / ASI05)
+     2. Tool argument validation / schema conformance (ASI02)
+     3. Tool output sanitization before re-prompting (ASI04)
+     4. Bounded loop termination (ASI08) — references iterative-agent.md
+     5. **MCP tool definition poisoning (ASI04)** — references CVE-2026-0755 etc.
+     Plus side-effect API blacklist by category (Files / RestTemplate /
+     EntityManager / Mail / etc.)
+   - **`rules/patterns/iterative-agent.md` ★ NEW (~1h)**:
+     - Variable-step LLM loops (vs chain workflow's fixed steps)
+     - Java targets: OrchestratorWorkers.java, ReflectionAgent.java,
+       recursive-advisor-demo
+     - Tests: bounded count, LLM-determined fan-out cap, sub-agent prompt isolation
+   - `rules/patterns/tool-handler.md` (~30 min)
+   - `rules/patterns/log-handler.md` (~30 min)
+   - `rules/general/attack-payload-assertions.md` (~30 min)
+   - `rules/general/existing-test-awareness.md` (~30 min)
+
+4. **OWASP Agentic 2026 ASI annotations (~30 min)**:
+   - Each `rules/owasp/*.md` opens with one-line LLM-Top-10 + ASI dual-mapping
 
 Tests/validation: smoke run (subtask 2) is the integration test.
 Subtask 3 isn't end-to-end-validated — relies on the LLM01 chain proof.
@@ -296,7 +349,18 @@ Tasks:
    - Repeat step 4 for both modes (separate logs)
    - Restore upstream
 
-6. **Stretch (only if anchor passed)**: RoutingWorkflow.java for LLM06
+6. **Stretch targets** (only if anchor passes; pick from):
+   - `agentic-patterns/orchestrator-workers/OrchestratorWorkers.java` —
+     iterative-agent test target. The orchestrator emits LLM-determined
+     `tasks` count with **no upper bound**; skill should catch via
+     "mock LLM returns 1000 tasks → expect bound check".
+   - `agentic-patterns/routing-workflow/RoutingWorkflow.java` — tool
+     routing surface (LLM06)
+   - `agents/reflection/ReflectionAgent.java` — critique loop
+     (iterative-agent + ASI08 cascading failures)
+   - `model-context-protocol/dynamic-tool-update/server/MathTools.java` —
+     MCP tool poisoning (ASI04)
+   - `advisors/tool-argument-augmenter-demo/` — tool arg validation (ASI02)
 
 7. **Record**: `experiments/realworld-results.md` with table:
    `(sample, mode, V_buggy outcome, V_clean outcome, catch-yes, precision-yes, headline)`
