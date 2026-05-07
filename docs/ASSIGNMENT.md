@@ -1,10 +1,10 @@
 # Assignment
 
 > **Source-of-truth note** — This document is a **verbatim copy** of the
-> course's final-project assignment as posted on Canvas. Editorial
-> commentary, derived constraints, and AgentTest team's reading of how
-> this binds our design live in [`assignment-constraints.md`](assignment-constraints.md).
-> When this file and any project plan disagree, this file wins.
+> course's final-project assignment as posted on Canvas. When this file
+> and any project plan disagree, this file wins. AgentTest's reading of
+> how each requirement maps to a delivered artifact lives in
+> [`project_plan.md`](project_plan.md) § 7 (governance / controls).
 
 ---
 

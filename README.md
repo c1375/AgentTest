@@ -20,22 +20,115 @@ skill mode (`/agenttest <file>`):
 | `EvaluatorOptimizer.java` | iterative-agent (recursion) | **4 / 4** ✓ | 4 / 4 ✓ | 0 / 7 ✗ | 7 / 7 ✓ |
 | **TOTAL** | 3 patterns | **12 catches** | 13 / 13 PASS | **0 catches** | 19 / 19 PASS |
 
-† ChainWorkflow's skill output has 4 attack-payload tests + 1 sanity
-test (always-PASS by design); the catch denominator counts the
-attack-payload tests only. Precision counts all 5.
+† ChainWorkflow's skill output is 4 attack-payload tests + 1 sanity
+test (always-PASS); the catch denominator counts attack-payload tests
+only. Precision counts all 5.
 
-**12-0 catch differential across three agent patterns. Both modes
-have intact precision** — neither false-positives on the defended
-(`V_clean`) variant. The delta is **framing**: vanilla writes
+**12-0 catch differential, both modes have intact precision.** The
+delta is **framing**, not technical capability — vanilla writes
 behavior-match tests; skill writes invariant tests anchored to OWASP
-attack payloads.
+attack payloads. N=3 is an existence proof across pattern variants,
+not a benchmark. Full data:
+[`experiments/realworld-results.md`](experiments/realworld-results.md).
 
-> **N=3 caveat.** This is an existence proof — "the framing gap is
-> achievable across pattern variants" — not a benchmark over a large
-> sample distribution. Full data, methodology, and limitations:
-> [`experiments/realworld-results.md`](experiments/realworld-results.md).
+## Context, user, and problem
 
-## Install
+**Who.** A Java developer building an AI-agent product on the Spring
+AI / LangChain4j / MCP stack. The primary persona is an individual
+engineer or a small team that owns an agent codebase and writes JUnit
+tests for their own code.
+
+**Workflow.** Writing unit tests for newly written or modified agent
+code. The painful subset is *agent-specific* tests — invariants a
+general Java test generator does not understand:
+
+- **Prompt injection** in template assembly (LLM01)
+- **Excessive agency** — tool description ↔ implementation drift,
+  unbounded LLM-controlled iteration (LLM06 / ASI02 / ASI08)
+- **Sensitive-data leakage** into prompts or logs (LLM02)
+
+**Why it matters.** Agent code is disproportionately exposed to a
+class of bugs that traditional Java code is not — prompt injection,
+tool-contract drift, sensitive-data leakage, multi-tenant boundary
+failures, retry / idempotency violations. These bugs are also
+disproportionately *invisible* to traditional test suites (which test
+functional correctness, not adversarial robustness or agent-pattern
+conformance) AND to vanilla LLM test generators — our N=3 eval shows
+vanilla Claude Code writes behavior-match tests on three real
+spring-ai-examples files and catches **zero** of the OWASP risks
+present. Closing that gap saves the developer hours per week of
+writing these tests by hand and lowers the probability of an
+agent-class bug shipping unnoticed.
+
+**Where this fits in prior art.** General LLM test generators
+(TestSpark, ChatUniTest, Diffblue, Qodo Cover) optimize line coverage
++ mutation score on generic code; their benchmarks (HumanEval-Java,
+Defects4J) contain no agent code and no OWASP-class bugs. OWASP audit
+skills (`agamm/claude-code-owasp`, `AgriciDaniel/claude-cybersecurity`)
+do review, not test generation. The intersection — *source-level,
+OWASP-aligned, Java-agent-specific, JUnit-emitting* — is where
+AgentTest fits.
+
+## Solution and design
+
+**What we built.** A Claude Code skill installed at
+`~/.claude/skills/agenttest/`. When the user types `/agenttest <file>`
+in any Maven Java project, the skill (per
+[`SKILL.md`](claude-skill/agenttest/SKILL.md)) reads the file,
+classifies the agent pattern, loads matching OWASP risk + Java rule
+files, plans Given-When-Then test cases, asks for confirmation,
+generates a JUnit 5 + Mockito test class, runs `mvn test-compile`
+to verify, and prints the source for the user to review before
+writing to disk.
+
+**Architecture** (12 modular markdown files, loaded on-demand by
+Step 1 pattern classification):
+
+```
+SKILL.md (7-step orchestrator)
+  ├── rules/general/         — cross-language test discipline
+  ├── rules/owasp/           — LLM01 / LLM02 / LLM06 invariants + payloads
+  ├── rules/patterns/        — chain-workflow / iterative-agent / tool-handler / log-handler
+  ├── rules/java/            — JUnit 5 + Mockito + AssertJ + ChatClient mocking
+  └── rules/post-generation/ — mvn test-compile + mvn test verification
+```
+
+The user's existing Claude Code session does the LLM work — there is
+no separate engine, no `ANTHROPIC_API_KEY`, no second LLM service.
+
+**Key design choices:**
+
+- **Skill-native, not engine.** Sprint-4 mid-sprint review pivoted
+  from a FastAPI engine pipeline to a markdown rules tree loaded
+  into the user's Claude Code session. Three reasons: matches Claude
+  Code skill design philosophy (prompt-time augmentation), no second
+  API key for the grader, validates against the user's real Spring
+  AI Maven classpath. Full pivot rationale:
+  [`docs/plan/sprint-4.md`](docs/plan/sprint-4.md) § "Why pivot".
+- **OWASP-anchored risk taxonomy.** No invented risk categories.
+  Every emitted test method's javadoc cites a specific OWASP risk
+  ID (LLM01, LLM06, etc.) plus the Agentic 2026 ASI mapping (ASI01
+  through ASI08 where applicable). 6 of 10 ASI 2026 risks covered
+  by Java unit tests; ASI03/06 deferred (multi-tenant + memory
+  poisoning out of scope); ASI09/10 not unit-testable.
+- **Attack-payload assertions** as the technical contribution.
+  Tests inject canonical OWASP payloads (`}}`, `<|im_start|>`,
+  `[INST]`, etc.) and assert the payload chars do NOT survive into
+  the captured LLM input / log output / tool side-effect — sharper
+  than "invariant tests" framing and doesn't overlap with general
+  Java testing skills.
+- **Human stays in the loop.** SKILL.md Step 7 explicitly says
+  "do NOT write to `src/test/java/` without user confirmation".
+  Every generated test is advisory; refusal-as-output when no
+  agent pattern is detected (no fabrication).
+- **Locked baseline = vanilla Claude Code session.** Same Claude
+  Code build, identical tool access (Read, Grep, Bash), only the
+  OWASP grounding differs. No tool asymmetry; the only manipulated
+  variable is whether the skill's instructions inject framing.
+
+## Setup and usage
+
+### Install
 
 ```pwsh
 git clone https://github.com/c1375/AgentTest.git
@@ -53,19 +146,19 @@ The skill installs to `~/.claude/skills/agenttest/`. It is
 `disable-model-invocation: true` — Claude won't auto-trigger it; you
 type `/agenttest <file>` explicitly.
 
-**No API key needed.** AgentTest is prompt-time augmentation that runs
-inside your existing Claude Code session.
+**No API key needed.** AgentTest is prompt-time augmentation that
+runs inside your existing Claude Code session.
 
-## Invoke
+### Invoke
 
-In any Claude Code project that is a Maven Java project with Spring AI
-/ LangChain4j / MCP code:
+In any Claude Code project that is a Maven Java project with Spring
+AI / LangChain4j / MCP code:
 
 ```
 /agenttest src/main/java/com/example/MyAgent.java
 ```
 
-The skill (per [`SKILL.md`](claude-skill/agenttest/SKILL.md)) will:
+The skill will:
 
 1. Read the target + classify the agent pattern (chain workflow /
    iterative agent / tool handler / log handler)
@@ -76,10 +169,68 @@ The skill (per [`SKILL.md`](claude-skill/agenttest/SKILL.md)) will:
 6. Run `mvn test-compile` (up to 5 retries) + report per-test outcomes
 7. Print the test source for you to review before writing to disk
 
-If the file isn't a Java AI agent pattern, the skill **refuses** rather
-than guessing.
+If the file isn't a Java AI agent pattern, the skill **refuses**
+rather than guessing.
 
-## Demo: side-by-side on `ChainWorkflow.java`
+## Evaluation and results
+
+### Methodology
+
+For each (sample, mode) where `mode ∈ {vanilla, skill}`:
+
+```
+V_buggy = upstream code as-is (real OWASP risk present)
+V_clean = hand-fixed (sanitize() + bounded loop where applicable)
+
+A = Claude Code session output WITH skill (/agenttest invocation)
+B = Claude Code session output WITHOUT skill (locked baseline prompt)
+
+Drop A or B into V_buggy → mvn test → expected FAIL  (catch / recall)
+Drop A or B into V_clean → mvn test → expected PASS  (precision)
+```
+
+**Catch criterion**: a (test set, V_buggy) pair counts as "catch"
+iff `mvn test` exits non-zero AND the failure messages match
+`(?i)(sanitize|injection|template.?breakout|system\s*:|prompt.?inject)`.
+All 12 skill catches in our eval matched the regex; no false
+positives required removal.
+
+**Precision criterion**: every test in the set passes on V_clean.
+
+Both vanilla and skill paths run inside Claude Code in **separate
+fresh sessions** — identical tool access (Read, Grep, Bash), only
+the skill grounding differs.
+
+### Test set: 3 real OSS files
+
+| Sample | Real upstream OWASP risk |
+|---|---|
+| `ChainWorkflow.java` | Line 121 `String.format("{%s}\n {%s}", prompt, response)` cycles user input + LLM response into next step's prompt with no sanitize (LLM01 direct + indirect) |
+| `OrchestratorWorkers.java` | Line 189 streams over LLM-controlled `tasks` list with no upper bound (LLM06 / ASI08); inputs flow into prompts unsanitized (LLM01 + ASI07) |
+| `EvaluatorOptimizer.java` | Lines 212–235 unbounded recursive loop (only PASS exits — LLM06 / ASI08); evaluator `feedback` flows into next-iteration `context` unsanitized (LLM01 indirect / ASI04) |
+
+Real OSS files with real bugs — no synthetic injection. The
+"self-validation problem" that troubled the pre-pivot engine eval is
+structurally absent: we do not write the bug.
+
+### Results — N=3 final headline
+
+See the table in [TL;DR](#tldr). 12-0 catch differential; both modes
+have intact precision (no false positives on `V_clean`).
+
+### Cross-cutting findings (abridged from results.md)
+
+1. **vanilla has the technical chops, lacks the framing.** All three
+   vanilla outputs used the correct Spring AI 1.0 fluent-API mocks,
+   correct `ArgumentCaptor.getAllValues()`, correct invocation-count
+   verifies. The difference is purely behavior-match vs invariant —
+   not knowledge.
+2. **Indirect-injection coverage is consistent.** The skill caught
+   the indirect-injection surface specific to each pattern (response
+   cycling, task-field flow, feedback context) — same OWASP risk,
+   three different surface shapes.
+
+## Artifact snapshot
 
 **Locked baseline prompt** (vanilla mode, used verbatim across all
 three samples in our eval):
@@ -155,112 +306,19 @@ void chainFeedsPreviousResponseIntoNextStep() {
 ```
 
 **Same `ArgumentCaptor.getAllValues()` recipe both sides; opposite
-framing.** Vanilla locks the test to the current literal format string;
-skill asserts that no canonical OWASP attack payload survives in any
-captured prompt regardless of format. **Vanilla's test passes on the
-buggy upstream code AND on the fixed code — it doesn't catch the
-LLM01 vulnerability either way. Skill's test fails on the buggy code,
-passes on the fix.**
+framing.** Vanilla locks the test to the current literal format
+string; skill asserts that no canonical OWASP attack payload survives
+in any captured prompt regardless of format. **Vanilla's test passes
+on the buggy upstream code AND on the fixed code — it doesn't catch
+the LLM01 vulnerability either way. Skill's test fails on the buggy
+code, passes on the fix.**
 
 Full artifacts:
 [`experiments/chainworkflow/`](experiments/chainworkflow/) (test_skill.java, test_vanilla.java, V_clean baseline)
 · [`experiments/orchestratorworkers/`](experiments/orchestratorworkers/)
 · [`experiments/evaluatoroptimizer/`](experiments/evaluatoroptimizer/)
 
-## Real-world eval (Phase 2, N=3)
-
-### Methodology
-
-For each (sample, mode) where `mode ∈ {vanilla, skill}`:
-
-```
-V_buggy = upstream code as-is (real OWASP risk present)
-V_clean = hand-fixed (sanitize() + bounded loop where applicable)
-
-A = Claude Code session output WITH skill (/agenttest invocation)
-B = Claude Code session output WITHOUT skill (locked baseline prompt)
-
-Drop A or B into V_buggy → mvn test → expected FAIL  (catch / recall)
-Drop A or B into V_clean → mvn test → expected PASS  (precision)
-```
-
-**Catch criterion**: a (test set, V_buggy) pair counts as "catch"
-iff `mvn test` exits non-zero AND the failure messages match
-`(?i)(sanitize|injection|template.?breakout|system\s*:|prompt.?inject)`.
-All 12 skill catches in our eval matched the regex; no false positives
-required removal.
-
-**Precision criterion**: every test in the set passes on V_clean.
-
-Both vanilla and skill paths run inside Claude Code in **separate
-fresh sessions** — identical tool access (Read, Grep, Bash), only the
-skill grounding differs. No tool asymmetry.
-
-### Risk coverage
-
-| Sample | OWASP / Agentic 2026 risks caught |
-|---|---|
-| ChainWorkflow | LLM01 direct (template-breakout, im_start markers, Llama tags) + LLM01 indirect via response cycling |
-| OrchestratorWorkers | LLM01 direct + ASI07 inter-agent comm via task fields + LLM06 / ASI08 fan-out cap |
-| EvaluatorOptimizer | LLM01 direct (template + im_start) + LLM01 indirect / ASI04 via evaluator feedback + LLM06 / ASI08 bounded recursion |
-
-### Cross-cutting findings (abridged from results.md)
-
-1. **vanilla has the technical chops, lacks the framing.** All three
-   vanilla outputs used the correct Spring AI 1.0 fluent-API mocks,
-   correct `ArgumentCaptor.getAllValues()`, correct invocation-count
-   verifies. The difference is purely behavior-match vs invariant —
-   not knowledge.
-2. **Indirect-injection coverage is consistent.** The skill caught the
-   indirect-injection surface specific to each pattern (response
-   cycling, task-field flow, feedback context) — same OWASP risk,
-   three different surface shapes.
-
-## How it works
-
-The skill is **prompt-time augmentation** — `SKILL.md` instructs your
-existing Claude Code session, no separate LLM service. Architecture:
-
-```
-SKILL.md (7-step orchestrator)
-  ├── rules/general/         — cross-language test discipline
-  ├── rules/owasp/           — LLM01 / LLM02 / LLM06 invariants + payloads
-  ├── rules/patterns/        — chain-workflow / iterative-agent / tool-handler / log-handler
-  ├── rules/java/            — JUnit 5 + Mockito + AssertJ + ChatClient mocking
-  └── rules/post-generation/ — mvn test-compile + mvn test verification
-```
-
-12 modular markdown files, loaded on-demand based on Step 1 pattern
-classification. No file is read unless its risk class matches the
-target.
-
-**OWASP Agentic 2026 ASI mapping**: 6 of 10 risks (ASI01, ASI02,
-ASI04, ASI05, ASI07, ASI08) covered by Java unit tests; ASI03/06
-deferred (multi-tenant + memory poisoning are scope-out for unit
-tests); ASI09/10 are not unit-testable (UX + emergent behavior). See
-[`docs/plan/sprint-4.md`](docs/plan/sprint-4.md) § "OWASP Agentic 2026
-ASI mapping" for the full table.
-
-The technical contribution is **attack-payload assertions** — tests
-inject canonical OWASP payloads and assert the payload chars don't
-survive into the captured LLM input / log output / tool side-effect.
-This is a sharper claim than "invariant tests vs behavior tests" and
-doesn't overlap with general Java testing skills.
-
-## What this is NOT
-
-- **Not auto-merge.** Generated tests are advisory; you review before
-  they land. An LLM-written test that asserts the wrong invariant locks
-  bad behavior in.
-- **Not OWASP audit / review.** [`agamm/claude-code-owasp`](https://github.com/agamm/claude-code-owasp)
-  and [`AgriciDaniel/claude-cybersecurity`](https://github.com/AgriciDaniel/claude-cybersecurity)
-  already cover audit-style OWASP review. AgentTest fills the
-  adjacent niche of test generation for AI agent code.
-- **Not a vanilla Claude wrapper.** No separate LLM service, no
-  `ANTHROPIC_API_KEY`. The skill is markdown rules loaded into the
-  same Claude Code session that does the work.
-
-## Limitations + known issues
+## Limitations + where this breaks down
 
 - **N=3 is existence proof, not benchmark.** Universal claims ("skill
   > vanilla on all Java AI code") would need N=15+ across more
@@ -286,9 +344,26 @@ doesn't overlap with general Java testing skills.
   around this by truncating in OrchestratorWorkers V_clean. Skill
   rule should accept either fix style; this is on the future-work
   list.
+- **Maven-only.** Gradle / Bazel / non-Maven projects fall outside
+  the skill's `mvn test-compile` + `mvn test` verification step.
+- **Java-only.** No Kotlin, no Scala, no other JVM languages.
+- **Spring AI 1.0 fluent API only.** `chatclient-mocking.md` rule
+  encodes Spring AI's specific `ChatClient.prompt().user(...).call()`
+  shape. LangChain4j and raw MCP clients have different APIs.
 - **Demo clip is pending** — Phase 3 task 3 from
   [`docs/plan/sprint-4.md`](docs/plan/sprint-4.md). Will be linked
   here when recorded.
+
+## What this is NOT
+
+- **Not auto-merge.** Generated tests are advisory; you review
+  before they land.
+- **Not OWASP audit / review.** Audit skills exist already (see
+  Related work). AgentTest fills the adjacent niche of *test
+  generation* for AI agent code.
+- **Not a wrapper around a separate LLM service.** No
+  `ANTHROPIC_API_KEY`, no FastAPI server. The skill is markdown
+  rules loaded into the same Claude Code session that does the work.
 
 ## Architecture journey
 
@@ -303,8 +378,8 @@ augmentation, not external LLM services). S4 pivoted to skill-native;
 the engine was deleted in commit `99df6e0`. The journey is documented
 in [`docs/plan/sprint-2.md`](docs/plan/sprint-2.md) →
 [`sprint-3.md`](docs/plan/sprint-3.md) →
-[`sprint-4.md`](docs/plan/sprint-4.md) (current SoT). The full pivot
-rationale is in `sprint-4.md` § "Why pivot".
+[`sprint-4.md`](docs/plan/sprint-4.md) (current SoT). Full pivot
+rationale: `sprint-4.md` § "Why pivot".
 
 ## Related work (verified 2026-05-07)
 
@@ -315,14 +390,14 @@ rationale is in `sprint-4.md` § "Why pivot".
   comprehensive cybersec code review with 8 specialist agents.
   **Audit, not test generation.**
 - [`clear-solutions/unit-tests-skills`](https://github.com/clear-solutions/unit-tests-skills) —
-  general Java JUnit test generation skill. Not AI-agent-specific; no
-  OWASP grounding. We use a similar multi-file `rules/` tree but all
-  rule content in AgentTest is written fresh (clear-solutions has no
-  LICENSE file at time of writing — confirmed 2026-05-07).
+  general Java JUnit test generation skill. Not AI-agent-specific;
+  no OWASP grounding. We use a similar multi-file `rules/` tree but
+  all rule content in AgentTest is written fresh (clear-solutions
+  has no LICENSE file at time of writing — confirmed 2026-05-07).
 
-AgentTest fills the adjacent niche: **JUnit test generation, Java AI
-agent code, OWASP attack-payload assertions.** No novelty claim on
-OWASP framing itself.
+AgentTest fills the adjacent niche: **JUnit test generation, Java
+AI agent code, OWASP attack-payload assertions.** No novelty claim
+on OWASP framing itself.
 
 ## Reproducibility
 
@@ -333,7 +408,8 @@ OWASP framing itself.
 | Maven | bundled `./mvnw` (3.9.x) |
 | Claude Code | `2.x` (locked baseline prompt captured 2026-05-06) |
 
-To reproduce a single sample's run, see [`experiments/realworld-results.md`](experiments/realworld-results.md)
+To reproduce a single sample's run, see
+[`experiments/realworld-results.md`](experiments/realworld-results.md)
 § "Reproducibility" — a 5-step PowerShell snippet that drops the
 test, runs `mvn test` against V_buggy and V_clean, and restores
 upstream.
@@ -342,12 +418,12 @@ upstream.
 
 Final project for a Generative AI course, **Week 7 deliverable**.
 
-- [`docs/ASSIGNMENT.md`](docs/ASSIGNMENT.md) — course requirements (binding)
+- [`docs/ASSIGNMENT.md`](docs/ASSIGNMENT.md) — course requirements (binding, verbatim from Canvas)
 - [`docs/project_plan.md`](docs/project_plan.md) /
-  [`docs/project_plan.zh.md`](docs/project_plan.zh.md) — design rationale (English / Chinese; Phase 3 rewrite pending)
+  [`docs/project_plan.zh.md`](docs/project_plan.zh.md) — design rationale (English / Chinese)
 - [`docs/plan/sprint-{2,3,4}.md`](docs/plan/) — sprint history (S2/S3 archive the engine era; S4 is current)
 - [`experiments/realworld-results.md`](experiments/realworld-results.md) — full N=3 data + methodology + findings
-- [`experiments/{chainworkflow,orchestratorworkers,evaluatoroptimizer}/`](experiments/) — raw artifacts (test_vanilla.java, test_skill.java, `<File>_fixed.java`)
+- [`experiments/{chainworkflow,orchestratorworkers,evaluatoroptimizer}/`](experiments/) — raw artifacts
 
 ## License
 
