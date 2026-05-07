@@ -43,16 +43,43 @@ response = chatClient.prompt(input).call().content();
 
 This is a genuine OWASP LLM01 vulnerability in Spring's official sample, with no existing test catching it. AgentTest's skill caught all four attack vectors (template breakout / im_start markers / Llama tags / indirect via response cycling) on first invocation.
 
-## V_clean run
+## V_clean run — **PASS** (precision check confirmed)
 
-**Not yet run**. Next step (Phase 2 task 1):
+`experiments/chainworkflow/ChainWorkflow_fixed.java` authored with a
+`sanitize(String)` helper applied to:
+- the initial `userInput` (closes direct injection at step 0)
+- each LLM `response` before the `String.format(...)` at line 121
+  (closes indirect injection — step N+1's prompt is clean even if the
+  step-N LLM "complied" with an attack)
 
-1. Author `experiments/chainworkflow/ChainWorkflow_fixed.java` with a `sanitize(String)` helper
-2. Apply sanitize to `userInput` (initial) AND each `response` before the `String.format(...)` at line 121
-3. Swap into `spring-ai-examples` temporarily, re-run `.\mvnw.cmd test "-Dtest=ChainWorkflowAgentGenTest"`
-4. Expect: all 5 tests PASS on V_clean (precision check)
+Swap procedure: copy V_clean over `spring-ai-examples` upstream, copy
+`test_skill.java` to `src/test/java/.../ChainWorkflowAgentGenTest.java`,
+run mvn test, restore upstream via `git checkout`.
 
-If any test fails on V_clean, the assertion is too strict — refine within max 3 attempts (per `rules/post-generation/verify.md` Step 3).
+```
+$ cd spring-ai-examples/agentic-patterns/chain-workflow
+$ # ... swap files ...
+$ ./mvnw -B -ntp test "-Dtest=ChainWorkflowAgentGenTest"
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.463 s
+[INFO] BUILD SUCCESS
+```
+
+**All 5 tests PASS on V_clean** — no false positives. The sanitize()
+helper is sufficient defense for the canonical attack payloads in
+`rules/owasp/llm01-prompt-injection.md`.
+
+After verification, spring-ai-examples was restored to upstream
+state via `git checkout -- src/main/java/...` and `rm -rf src/test`.
+
+## Headline result
+
+| Mode | Sample | V_buggy outcome | V_clean outcome | Catch | Precision | Headline |
+|---|---|---|---|---|---|---|
+| skill (`/agenttest`) | ChainWorkflow.java | 4/5 FAIL (catch ✓) | 5/5 PASS | ✓ | ✓ | **catch ∧ precision = TRUE** |
+
+This is N=1 real-world data confirming the skill catches a real OWASP
+LLM01 vulnerability in upstream Spring AI code AND does not produce
+false positives on the defended variant.
 
 ## Vanilla baseline (Phase 2 task 2)
 
