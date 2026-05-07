@@ -55,7 +55,8 @@ This skill assumes Maven. **Gradle / other build systems not yet supported**
 
 ## Source
 
-Forked from
-[`clear-solutions/unit-tests-skills/rules/tests/post-generation/compilation-verification.md`](https://github.com/clear-solutions/unit-tests-skills/blob/main/skills/generate-tests/rules/tests/post-generation/compilation-verification.md)
-+ `test-execution-verification.md`. Combined into single file for the
-narrower Maven-only scope. **License attribution pending.**
+Original to AgentTest. **`clear-solutions/unit-tests-skills` has no
+LICENSE file at time of writing (checked 2026-05-06), so we do NOT
+fork its content.** The two-phase verification (compile + execute) is
+a common testing convention; the Maven-specific commands and retry
+budgets here are written fresh.

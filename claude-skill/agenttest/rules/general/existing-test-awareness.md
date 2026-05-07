@@ -23,7 +23,8 @@ Skeleton — content authoring pending Phase 1.
 
 ## Source
 
-Forked from
-[`clear-solutions/unit-tests-skills/rules/tests/general/existing-test-awareness.md`](https://github.com/clear-solutions/unit-tests-skills/blob/main/skills/generate-tests/rules/tests/general/existing-test-awareness.md).
-**License attribution pending — verify clear-solutions LICENSE before
-landing actual content (Apache 2.0 / MIT / proprietary).**
+Original to AgentTest. **`clear-solutions/unit-tests-skills` has no
+LICENSE file at time of writing (checked 2026-05-06), so we do NOT
+fork its content.** This file's structure (multi-file rules tree)
+draws inspiration from common skill conventions; all prose is written
+fresh.

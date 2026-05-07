@@ -136,6 +136,10 @@ as the differentiator vs vanilla Claude.
 
 Structural reference for the skill organization:
 [`clear-solutions/unit-tests-skills`](https://github.com/clear-solutions/unit-tests-skills) —
-general Java JUnit test generation skill. AgentTest's `rules/general/` and
-`rules/java/junit-template.md` borrow from this structure (license TBD;
-proper attribution in those files).
+general Java JUnit test generation skill. We use a similar multi-file
+rules tree (general / java / post-generation), but **all rule content
+in AgentTest is written fresh** — `clear-solutions` has no LICENSE
+file at time of writing (checked 2026-05-06), so we do not fork its
+prose or code examples. Common testing-discipline conventions
+(behaviors-not-methods, FORBIDDEN annotations, etc.) are widely
+documented and used here as community knowledge.

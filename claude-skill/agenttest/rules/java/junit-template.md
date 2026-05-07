@@ -53,7 +53,8 @@ Skeleton — content authoring pending Phase 1.
 
 ## Source
 
-Forked from
-[`clear-solutions/unit-tests-skills/rules/tests/java/unit/java-test-template.md`](https://github.com/clear-solutions/unit-tests-skills/blob/main/skills/generate-tests/rules/tests/java/unit/java-test-template.md).
-**License attribution pending — verify clear-solutions LICENSE before
-landing actual content (Apache 2.0 / MIT / proprietary).**
+Original to AgentTest. **`clear-solutions/unit-tests-skills` has no
+LICENSE file at time of writing (checked 2026-05-06), so we do NOT
+fork its content.** The `@SpringBootTest` FORBIDDEN guidance derives
+from JUnit 5 / Mockito community conventions (widely documented, not
+proprietary). All prose, examples, and code snippets are written fresh.
