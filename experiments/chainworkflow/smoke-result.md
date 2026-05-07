@@ -121,9 +121,9 @@ project, with the same Claude Code build.
 ## Files
 
 - `test_skill.java` — copy of the generated test class (the skill output, captured here for Phase 2 comparison)
-- (TODO) `ChainWorkflow_fixed.java` — V_clean with sanitize() defense
-- (TODO) `test_vanilla.java` — vanilla Claude Code's output for the same target
-- (TODO) `baseline-context.md` — vanilla session metadata
+- `ChainWorkflow_fixed.java` — V_clean with sanitize() defense
+- `test_vanilla.java` — vanilla Claude Code's output for the same target
+- `baseline-context.md` — vanilla session metadata
 
 ## Note on disk write
 
