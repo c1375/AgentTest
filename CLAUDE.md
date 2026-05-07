@@ -70,6 +70,11 @@ every design decision**. When in doubt, defer to `docs/ASSIGNMENT.md`.
 
 ## Workflow
 
+The `.claude/` workflow tooling (sub-agents and slash commands) is
+gitignored — it lives only on the local repo for the developer + AI
+assistant. The bullets below apply when working locally where these
+files exist; on a fresh public clone they are unavailable.
+
 - **For code review**: invoke the `code-reviewer` sub-agent (after
   non-trivial changes, before commits)
 - **For status check**: `/status`
@@ -84,33 +89,33 @@ pipelines.
 ```
 AgentTest/
 ├── CLAUDE.md                            # this file
-├── README.md                            # user-facing (rewrite due in Phase 4)
+├── README.md                            # user-facing
+├── LICENSE                              # Apache 2.0
 ├── .gitignore
 ├── docs/
-│   ├── ASSIGNMENT.md                    # course requirements (source of truth)
-│   ├── project_plan.md / .zh.md         # course deliverable doc (pre-pivot — needs update)
-│   └── plan/
-│       ├── sprint-2.md                  # historical (engine era, kept as narrative)
-│       ├── sprint-3.md                  # historical (engine era, kept as narrative)
-│       └── sprint-4.md                  # CURRENT plan (pivot to skill)
+│   ├── ASSIGNMENT.md                    # course requirements (verbatim from Canvas)
+│   └── project_plan.md / .zh.md         # design rationale (English / Chinese)
 ├── claude-skill/
-│   └── agenttest/
-│       ├── SKILL.md                     # 5-step orchestrator
-│       └── rules/
-│           ├── general/                 # cross-language testing principles
+│   └── agenttest/                       # the deliverable
+│       ├── SKILL.md                     # 7-step orchestrator
+│       └── rules/                       # 12 modular markdown rule files
+│           ├── general/                 # cross-language test discipline
 │           ├── owasp/                   # LLM01 / LLM02 / LLM06 invariants + payloads
-│           ├── patterns/                # agent pattern recognition rules
-│           ├── java/unit/               # JUnit 5 + Mockito + AssertJ specifics
+│           ├── patterns/                # chain-workflow / iterative-agent / tool-handler / log-handler
+│           ├── java/                    # JUnit 5 + Mockito + AssertJ + ChatClient mocking
 │           └── post-generation/         # mvn test-compile + mvn test verification
 ├── experiments/
-│   └── chainworkflow/                   # Phase 2 eval (V_clean, test outputs, results.md)
-├── bin/
-│   └── install-skill.ps1                # install skill to ~/.claude/skills/
-└── .claude/                             # Claude Code workflow config
-    ├── agents/code-reviewer.md
-    ├── commands/{debrief,decision,status}.md
-    └── hooks/{guard-dangerous-bash,post-edit-reminders}.sh
+│   ├── realworld-results.md             # N=3 aggregate results
+│   ├── chainworkflow/                   # Phase 2 anchor (test_skill, test_vanilla, V_clean, smoke-result)
+│   ├── orchestratorworkers/             # Phase 2 stretch #1
+│   └── evaluatoroptimizer/              # Phase 2 stretch #2
+└── bin/
+    └── install-skill.ps1                # install skill to ~/.claude/skills/
 ```
+
+Gitignored (local-only, not on public repo):
+- `docs/plan/sprint-{2,3,4}.md` — internal sprint planning
+- `.claude/{agents,commands,hooks}/` — workflow tooling (sub-agents + slash commands + edit hooks)
 
 ## Architecture Source of Truth
 

@@ -128,6 +128,22 @@ no separate engine, no `ANTHROPIC_API_KEY`, no second LLM service.
 
 ## Setup and usage
 
+### Prerequisites
+
+- [Claude Code](https://claude.ai/code) installed and authenticated
+  with an active subscription (the skill runs inside your Claude
+  Code session — **no separate Anthropic API key needed**)
+- Git
+- Java 17+ on `PATH` (for the target project's `mvn test-compile`
+  / `mvn test`)
+- A target Maven Java project with Spring AI / LangChain4j / MCP
+  code. To reproduce the headline result we recommend cloning
+  [`spring-ai-examples`](https://github.com/spring-projects/spring-ai-examples)
+  and pinning to commit `2a6088d` — see *Reproduce the eval headline*
+  below.
+- Windows PowerShell to run the install script, or `cp -r` on
+  macOS / Linux
+
 ### Install
 
 ```pwsh
@@ -145,9 +161,6 @@ mkdir -p ~/.claude/skills && cp -r claude-skill/agenttest ~/.claude/skills/
 The skill installs to `~/.claude/skills/agenttest/`. It is
 `disable-model-invocation: true` — Claude won't auto-trigger it; you
 type `/agenttest <file>` explicitly.
-
-**No API key needed.** AgentTest is prompt-time augmentation that
-runs inside your existing Claude Code session.
 
 ### Invoke
 
@@ -171,6 +184,43 @@ The skill will:
 
 If the file isn't a Java AI agent pattern, the skill **refuses**
 rather than guessing.
+
+### Reproduce the eval headline
+
+A grader can run the skill on one of our N=3 eval samples end-to-end:
+
+```pwsh
+# 1. Install AgentTest (if not done above)
+git clone https://github.com/c1375/AgentTest.git
+cd AgentTest
+.\bin\install-skill.ps1
+
+# 2. Clone spring-ai-examples next to AgentTest, pin to our eval commit
+cd ..
+git clone https://github.com/spring-projects/spring-ai-examples.git
+cd spring-ai-examples
+git checkout 2a6088d
+cd agentic-patterns/chain-workflow
+
+# 3. Open this directory in Claude Code, then type:
+#    /agenttest src/main/java/com/example/agentic/ChainWorkflow.java
+#
+# The skill will read the file, classify it as a chain workflow, plan
+# 5 tests (4 attack-payload + 1 sanity), ask you to confirm, generate
+# a JUnit 5 test class, and run mvn test-compile to verify.
+
+# 4. (Optional) Compare against the committed reference output:
+#    AgentTest/experiments/chainworkflow/test_skill.java
+```
+
+Expected outcome: ~5 generated tests including
+`chain_userInputContainsTemplateBreakout_noStepLeaksPayload`. When
+run against the upstream `ChainWorkflow.java` (V_buggy), 4 of 5 will
+**FAIL** on assertions about LLM01 attack-payload survival — that's
+the "catch" signal documented in
+[`experiments/realworld-results.md`](experiments/realworld-results.md).
+The 5th test (sanity) passes; on `ChainWorkflow_fixed.java` (V_clean)
+all 5 pass.
 
 ## Evaluation and results
 
@@ -350,7 +400,6 @@ Full artifacts:
 - **Spring AI 1.0 fluent API only.** `chatclient-mocking.md` rule
   encodes Spring AI's specific `ChatClient.prompt().user(...).call()`
   shape. LangChain4j and raw MCP clients have different APIs.
-- **Demo clip is pending.** Will be linked here when recorded.
 
 ## What this is NOT
 

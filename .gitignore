@@ -37,5 +37,8 @@ docs/plan/
 .DS_Store
 Thumbs.db
 
-# Claude Code per-user settings (permission allowlist, etc.)
-.claude/settings.local.json
+# Claude Code per-project workflow config — sub-agents, slash commands,
+# hooks, per-user settings. Useful for the developer + AI assistant
+# working in this repo, but not part of the public deliverable. Same
+# rationale as docs/plan/.
+.claude/
