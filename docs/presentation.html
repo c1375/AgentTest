@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentTest — Lightning Presentation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+                 "Hiragino Sans GB", sans-serif;
+    color: #111827;
+    background: #FAFAFA;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  main {
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    height: 100vh;
+  }
+  section.slide {
+    scroll-snap-align: start;
+    min-height: 100vh;
+    padding: 3.5rem 4.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: 1px solid #E5E7EB;
+    position: relative;
+  }
+  section.slide::before {
+    content: attr(data-num) " / 7";
+    position: absolute;
+    top: 1.25rem;
+    right: 2rem;
+    font-size: 0.8rem;
+    color: #9CA3AF;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+  section.slide .eyebrow {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #DC2626;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  section.slide h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+  section.slide h2 + p.subtitle {
+    font-size: 1.1rem;
+    color: #4B5563;
+    margin-bottom: 2rem;
+    max-width: 65rem;
+    line-height: 1.6;
+  }
+  section.slide h2 + p.subtitle strong { color: #111827; }
+
+  /* Title slide */
+  section.slide.title {
+    background: linear-gradient(135deg, #1F2937 0%, #0F172A 100%);
+    color: #F9FAFB;
+    text-align: center;
+    align-items: center;
+  }
+  section.slide.title::before { color: #4B5563; }
+  section.slide.title h1 {
+    font-size: 5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+    line-height: 1;
+  }
+  section.slide.title h1 .accent { color: #FCA5A5; }
+  section.slide.title p.tag {
+    font-size: 1.35rem;
+    color: #D1D5DB;
+    margin-bottom: 2.5rem;
+    max-width: 50rem;
+    line-height: 1.5;
+  }
+  section.slide.title .roadmap {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.85rem;
+    max-width: 60rem;
+    width: 100%;
+  }
+  section.slide.title .roadmap div {
+    padding: 0.85rem 1rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    color: #E5E7EB;
+    text-align: left;
+  }
+  section.slide.title .roadmap div .num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #FCA5A5;
+    display: block;
+    margin-bottom: 0.15rem;
+    line-height: 1;
+  }
+  section.slide.title .meta {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #6B7280;
+  }
+
+  /* Cards */
+  .cards {
+    display: grid;
+    gap: 1.1rem;
+    max-width: 80rem;
+  }
+  .cards.two { grid-template-columns: repeat(2, 1fr); }
+  .cards.four { grid-template-columns: repeat(2, 1fr); }
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.4rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card .icon {
+    width: 2.2rem;
+    height: 2.2rem;
+    background: #FEE2E2;
+    color: #DC2626;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.65rem;
+  }
+  .card h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    color: #111827;
+  }
+  .card p {
+    color: #4B5563;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .card code {
+    font-size: 0.88em;
+    background: #F3F4F6;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.2rem;
+  }
+
+  /* Pain list */
+  .pain-list {
+    list-style: none;
+    margin: 1rem 0 1rem;
+    max-width: 55rem;
+  }
+  .pain-list li {
+    padding: 0.75rem 1rem;
+    background: white;
+    border-left: 3px solid #DC2626;
+    margin-bottom: 0.5rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+    font-size: 0.95rem;
+  }
+  .pain-list li strong { color: #DC2626; }
+
+  /* Big number */
+  .big-stat {
+    background: #FEF2F2;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    border-left: 4px solid #DC2626;
+  }
+  .big-stat .label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #991B1B;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .big-stat .number {
+    font-size: 5.5rem;
+    font-weight: 800;
+    color: #DC2626;
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+  .big-stat .number .small {
+    font-size: 0.35em;
+    color: #6B7280;
+    font-weight: 600;
+  }
+  .big-stat .desc {
+    margin-top: 0.5rem;
+    color: #4B5563;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  /* 7-step flow */
+  .flow {
+    display: flex;
+    gap: 0.4rem;
+    align-items: stretch;
+    margin: 1.25rem 0 1.5rem;
+    flex-wrap: wrap;
+  }
+  .flow .step {
+    flex: 1 1 0;
+    min-width: 6.5rem;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.5rem;
+    text-align: center;
+    position: relative;
+  }
+  .flow .step .num {
+    width: 1.4rem;
+    height: 1.4rem;
+    background: #DC2626;
+    color: white;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+  .flow .step .title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #111827;
+  }
+  .flow .step .desc {
+    font-size: 0.7rem;
+    color: #6B7280;
+    margin-top: 0.15rem;
+  }
+
+  /* Results table */
+  table.results {
+    width: 100%;
+    max-width: 75rem;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+    background: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  table.results th,
+  table.results td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  table.results thead th {
+    background: #F3F4F6;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table.results tbody tr.total {
+    background: #FEF2F2;
+    font-weight: 700;
+  }
+  table.results tbody tr.total td {
+    border-bottom: none;
+  }
+  table.results .yes { color: #059669; font-weight: 700; }
+  table.results .no { color: #DC2626; font-weight: 700; }
+  table.results code { font-size: 0.88em; color: #4B5563; }
+
+  /* Bar chart */
+  .chart {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 1.2rem;
+    align-items: center;
+    max-width: 60rem;
+    margin: 0.6rem 0;
+  }
+  .chart .label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 1rem;
+  }
+  .chart .bar-container {
+    background: #F3F4F6;
+    height: 2.4rem;
+    border-radius: 0.3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart .bar {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 0.85rem;
+    color: white;
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+  .chart .bar.skill { background: #059669; }
+  .chart .bar.vanilla { background: #DC2626; }
+  .chart .bar.empty { background: #DC2626; min-width: 2rem; justify-content: center; padding: 0; }
+
+  /* Code blocks */
+  pre {
+    background: #1F2937;
+    color: #F9FAFB;
+    padding: 1rem 1.15rem;
+    border-radius: 0.5rem;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, "Cascadia Code", monospace;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    margin: 0;
+  }
+  pre.compact { font-size: 0.78rem; }
+  pre .kw { color: #93C5FD; }
+  pre .str { color: #FCA5A5; }
+  pre .com { color: #6EE7B7; font-style: italic; }
+  pre .anno { color: #FCD34D; }
+  pre .type { color: #C4B5FD; }
+  pre .num-lit { color: #FCD34D; }
+
+  .code-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    max-width: 95rem;
+  }
+  .code-block h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .code-block.skill h4 .badge {
+    background: #D1FAE5;
+    color: #065F46;
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.25rem;
+    font-size: 0.72rem;
+  }
+  .code-block.vanilla h4 .badge {
+    background: #FEE2E2;
+    color: #991B1B;
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.25rem;
+    font-size: 0.72rem;
+  }
+
+  /* Insight box */
+  .insight {
+    background: #FFFBEB;
+    border-left: 4px solid #F59E0B;
+    padding: 0.85rem 1.25rem;
+    margin: 1.2rem 0 0;
+    border-radius: 0 0.4rem 0.4rem 0;
+    max-width: 95rem;
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+  .insight strong { color: #B45309; }
+
+  /* Methodology two-column */
+  .method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 95rem;
+  }
+  .method-grid h3 {
+    margin-bottom: 0.6rem;
+    font-size: 1.05rem;
+    color: #111827;
+  }
+
+  /* Limits + takeaways */
+  .limits-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 80rem;
+  }
+  .limits-col h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid currentColor;
+    display: inline-block;
+  }
+  .limits-col ul {
+    list-style: none;
+  }
+  .limits-col li {
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    color: #4B5563;
+    border-bottom: 1px dashed #E5E7EB;
+    line-height: 1.5;
+  }
+  .limits-col li::before {
+    content: "·";
+    color: #9CA3AF;
+    margin-right: 0.55rem;
+    font-weight: 700;
+  }
+  .limits-col li strong { color: #111827; }
+
+  .repo {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: #1F2937;
+    color: #F9FAFB;
+    border-radius: 0.5rem;
+    font-family: "JetBrains Mono", monospace;
+    text-align: center;
+    font-size: 1.1rem;
+    max-width: 80rem;
+  }
+
+  /* Inline code */
+  code.inline {
+    font-family: "JetBrains Mono", monospace;
+    background: #F3F4F6;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.88em;
+    color: #1F2937;
+  }
+
+  /* Nav hint */
+  .nav-hint {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(31, 41, 55, 0.85);
+    color: #F9FAFB;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0.65;
+    transition: opacity 0.3s;
+  }
+  .nav-hint:hover { opacity: 1; }
+
+  /* Print */
+  @media print {
+    main { height: auto; overflow: visible; scroll-snap-type: none; }
+    section.slide {
+      page-break-after: always;
+      min-height: auto;
+      padding: 1.5rem 2rem;
+      border: none;
+    }
+    section.slide.title { background: #1F2937 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .nav-hint { display: none; }
+    pre, .insight, .big-stat, .card, table.results, .repo {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  /* Smaller screens */
+  @media (max-width: 1100px) {
+    section.slide { padding: 2.5rem 2.5rem; }
+    .code-grid { grid-template-columns: 1fr; }
+    .method-grid, .limits-grid { grid-template-columns: 1fr; }
+    section.slide h2 { font-size: 1.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<main id="deck">
+
+<!-- ============================ Slide 1 — Title ============================ -->
+<section class="slide title" data-num="1">
+  <h1>Agent<span class="accent">Test</span></h1>
+  <p class="tag">为 Java AI agent 代码生成 OWASP 锚定的 JUnit 测试<br><span style="font-size: 0.85em; color: #9CA3AF;">—— 一个 Claude Code skill</span></p>
+  <div class="roadmap">
+    <div><span class="num">1</span>Context, user, problem</div>
+    <div><span class="num">2</span>Solution &amp; design</div>
+    <div><span class="num">3</span>Evaluation &amp; results</div>
+    <div><span class="num">4</span>Artifact snapshot</div>
+  </div>
+  <p class="meta">Generative AI · Final Project · Week 7</p>
+</section>
+
+<!-- ============================ Slide 2 — Context ============================ -->
+<section class="slide" data-num="2">
+  <p class="eyebrow">① Context, user, problem</p>
+  <h2>Java AI agent 开发者写不出抓 OWASP 类 bug 的测试</h2>
+  <p class="subtitle"><strong>用户</strong>：在 Spring AI / LangChain4j / MCP 技术栈上做 AI agent 产品的 Java 工程师。<br><strong>工作流</strong>：为新写的或修改的 agent 代码写 JUnit 单元测试。</p>
+
+  <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 2rem; max-width: 90rem; align-items: start;">
+    <div>
+      <h3 style="margin-bottom: 0.75rem; font-size: 1.05rem; color: #111827;">痛点：3 类 agent 特定不变量传统测试看不见</h3>
+      <ul class="pain-list">
+        <li><strong>LLM01 / ASI01</strong> · Prompt injection ——
+          模板组装中用户输入 + 上一轮 LLM 响应循环回下一个 prompt，未 sanitize</li>
+        <li><strong>LLM06 / ASI02–08</strong> · Excessive agency ——
+          无界 LLM 控制迭代、tool 描述↔实现漂移、cascading sub-agent failures</li>
+        <li><strong>LLM02</strong> · 敏感数据泄漏 ——
+          PII / 凭据 / 多租户上下文落到 prompt 或日志</li>
+      </ul>
+      <p style="color: #4B5563; max-width: 50rem; margin-top: 0.5rem; font-size: 0.92rem;">
+        通用 LLM 测试生成器（TestSpark, ChatUniTest, Diffblue）的 benchmark
+        （HumanEval-Java, Defects4J）<strong style="color: #DC2626;">不含 agent 代码</strong>，
+        OWASP audit skills 又只<strong style="color: #DC2626;">做 review 不做测试生成</strong>——交叉点是空的。
+      </p>
+    </div>
+    <div class="big-stat">
+      <div class="label">N=3 evaluation</div>
+      <div class="number">0<span class="small"> / 19</span></div>
+      <div class="desc">vanilla Claude Code 在 3 个真实 spring-ai-examples 文件上写出 19 个技术功夫到位的测试，<strong style="color: #DC2626;">抓到的 OWASP 漏洞 = 0</strong>。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ Slide 3 — Solution ============================ -->
+<section class="slide" data-num="3">
+  <p class="eyebrow">② Solution &amp; design</p>
+  <h2>一个 Claude Code skill：<code class="inline" style="font-size: 0.7em;">/agenttest &lt;file&gt;</code></h2>
+  <p class="subtitle">7 步 orchestrator + 12 个按需加载的 markdown 规则文件。<strong>做 LLM 工作的就是用户已有的 Claude Code session 本身</strong>——没有独立 engine、不需要第二把 API key、$0 边际成本。</p>
+
+  <div class="flow">
+    <div class="step"><span class="num">1</span><div class="title">Read + 分类</div><div class="desc">agent 模式</div></div>
+    <div class="step"><span class="num">2</span><div class="title">加载 OWASP</div><div class="desc">风险规则</div></div>
+    <div class="step"><span class="num">3</span><div class="title">规划用例</div><div class="desc">Given-When-Then</div></div>
+    <div class="step"><span class="num">4</span><div class="title">询问确认</div><div class="desc">human-in-loop</div></div>
+    <div class="step"><span class="num">5</span><div class="title">生成测试</div><div class="desc">JUnit 5 + Mockito</div></div>
+    <div class="step"><span class="num">6</span><div class="title">mvn 验证</div><div class="desc">test-compile + test</div></div>
+    <div class="step"><span class="num">7</span><div class="title">输出审阅</div><div class="desc">advisory，不写盘</div></div>
+  </div>
+
+  <div class="cards four">
+    <div class="card">
+      <div class="icon">①</div>
+      <h3>Skill-native，不是 engine wrapper</h3>
+      <p>S4 中期 pivot：从 FastAPI engine pipeline 改为 markdown rules tree。<strong>grader 不需要 ANTHROPIC_API_KEY</strong>，跑在用户真实 Spring AI Maven classpath 上。</p>
+    </div>
+    <div class="card">
+      <div class="icon">②</div>
+      <h3>OWASP 锚定的 risk taxonomy</h3>
+      <p>不发明 risk category。每个测试方法的 javadoc 引具体 risk ID（LLM01/06 + ASI01–08）。<strong>覆盖 6/10 ASI 风险</strong>。</p>
+    </div>
+    <div class="card">
+      <div class="icon">③</div>
+      <h3>Attack-payload assertions</h3>
+      <p>注入 canonical OWASP payloads（<code>}}</code>, <code>&lt;|im_start|&gt;</code>, <code>[INST]</code>）→ 断言 payload 字符<strong>不</strong>在被捕获的 prompt 中存活。<strong>不是 behavior-match。</strong></p>
+    </div>
+    <div class="card">
+      <div class="icon">④</div>
+      <h3>Human-in-the-loop</h3>
+      <p>SKILL.md Step 7 显式："do NOT write to <code>src/test/java/</code> without confirmation"。所有生成测试 <strong>advisory</strong>，never auto-merged。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ Slide 4 — Evaluation methodology ============================ -->
+<section class="slide" data-num="4">
+  <p class="eyebrow">③ Evaluation — methodology</p>
+  <h2>对照 vanilla Claude Code，3 个真实 OSS 文件，机械判定</h2>
+  <p class="subtitle">同一个 Claude Code build，相同工具访问（Read, Grep, Bash），唯一差异是是否注入 skill grounding——<strong>无工具不对称</strong>。Catch 准则<strong>不用 model-as-judge</strong>。</p>
+
+  <div class="method-grid">
+    <div>
+      <h3>测试集 · spring-ai-examples @ <code class="inline">2a6088d</code></h3>
+      <table class="results" style="font-size: 0.88rem;">
+        <thead>
+          <tr><th>样本</th><th>Pattern</th><th>真实 OWASP 风险</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ChainWorkflow</code></td>
+            <td>chain workflow</td>
+            <td>LLM01 直接 + 间接</td>
+          </tr>
+          <tr>
+            <td><code>Orchestrator<br>Workers</code></td>
+            <td>iterative-agent<br>(fan-out)</td>
+            <td>LLM06/ASI08 +<br>LLM01/ASI07</td>
+          </tr>
+          <tr>
+            <td><code>Evaluator<br>Optimizer</code></td>
+            <td>iterative-agent<br>(recursion)</td>
+            <td>LLM06/ASI08 +<br>LLM01/ASI04</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 0.85rem; color: #6B7280; margin-top: 0.6rem;">真实 OSS 文件，<strong>真实 bug</strong>——不是我们写的。结构上规避了 self-validation problem。</p>
+    </div>
+    <div>
+      <h3>Rubric · 机械判定，无 LLM-as-judge</h3>
+<pre class="compact"><span class="com">// 4 种组合都跑 mvn test</span>
+V_buggy = 上游代码原样
+V_clean = 手工修复
+
+A = skill 模式输出
+B = vanilla 模式输出
+
+A/B → V_buggy → mvn test → <span class="anno">期望 FAIL</span>  <span class="com">// catch</span>
+A/B → V_clean → mvn test → <span class="anno">期望 PASS</span>  <span class="com">// precision</span>
+
+<span class="com">// catch 准则</span>
+exit ≠ 0 <span class="kw">AND</span> 失败信息匹配 regex:
+  <span class="str">(sanitize|injection|template-breakout</span>
+   <span class="str">|system:|prompt-inject)</span></pre>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>"Catch"</strong> = 测试在有漏洞的代码上失败 + 失败原因明确指向 OWASP 风险。<strong>"Precision"</strong> = 在修好的代码上全部通过。两个准则同时满足才算赢。
+  </div>
+</section>
+
+<!-- ============================ Slide 5 — Evaluation results ============================ -->
+<section class="slide" data-num="5">
+  <p class="eyebrow">③ Evaluation — results</p>
+  <h2>Skill 抓 12 个 OWASP 风险；vanilla 抓 0 个</h2>
+  <p class="subtitle">两边 precision 都没坏（13/13 + 19/19 PASS on V_clean）。差距是 <strong>framing</strong>，不是技术能力。</p>
+
+  <table class="results">
+    <thead>
+      <tr>
+        <th>样本</th>
+        <th>Skill catches</th>
+        <th>Skill precision</th>
+        <th>Vanilla catches</th>
+        <th>Vanilla precision</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>ChainWorkflow</code></td>
+        <td><span class="yes">4 / 4 ✓</span></td>
+        <td>5 / 5 ✓</td>
+        <td><span class="no">0 / 5 ✗</span></td>
+        <td>5 / 5 ✓</td>
+      </tr>
+      <tr>
+        <td><code>OrchestratorWorkers</code></td>
+        <td><span class="yes">4 / 4 ✓</span></td>
+        <td>4 / 4 ✓</td>
+        <td><span class="no">0 / 7 ✗</span></td>
+        <td>7 / 7 ✓</td>
+      </tr>
+      <tr>
+        <td><code>EvaluatorOptimizer</code></td>
+        <td><span class="yes">4 / 4 ✓</span></td>
+        <td>4 / 4 ✓</td>
+        <td><span class="no">0 / 7 ✗</span></td>
+        <td>7 / 7 ✓</td>
+      </tr>
+      <tr class="total">
+        <td>合计</td>
+        <td><span class="yes">12 catches</span></td>
+        <td>13 / 13 PASS</td>
+        <td><span class="no">0 catches</span></td>
+        <td>19 / 19 PASS</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 1.5rem;">
+    <h3 style="font-size: 0.85rem; color: #6B7280; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">Catches 视化（越多越好）</h3>
+    <div class="chart">
+      <div class="label">Skill</div>
+      <div class="bar-container"><div class="bar skill" style="width: 100%;">12</div></div>
+    </div>
+    <div class="chart">
+      <div class="label">Vanilla</div>
+      <div class="bar-container"><div class="bar empty" style="width: 4%;">0</div></div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>关键发现</strong>：vanilla 用了完全正确的 Spring AI fluent API、<code>ArgumentCaptor.getAllValues()</code>、<code>verify(times(N))</code>——它<strong>有技术功夫，缺的是 framing</strong>。问题不是 Claude 不懂 OWASP，是它默认写 behavior-match 测试。
+  </div>
+</section>
+
+<!-- ============================ Slide 6 — Artifact snapshot ============================ -->
+<section class="slide" data-num="6">
+  <p class="eyebrow">④ Artifact snapshot</p>
+  <h2>同一个 ChainWorkflow.java，同一个 ArgumentCaptor 配方，<span style="color: #DC2626;">相反的 framing</span></h2>
+  <p class="subtitle" style="margin-bottom: 1.25rem;">两边都是 vanilla Claude 能写出的 Spring AI 代码——差异只在<strong>断言什么</strong>。</p>
+
+  <div class="code-grid">
+    <div class="code-block skill">
+      <h4>Skill 输出 <span class="badge">抓 LLM01 漏洞 ✓</span></h4>
+<pre><span class="anno">@Test</span>
+<span class="kw">void</span> chain_userInputContainsTemplateBreakout
+       _noStepLeaksPayload() {
+  <span class="type">ArgumentCaptor</span>&lt;<span class="type">String</span>&gt; cap =
+    <span class="type">ArgumentCaptor</span>.forClass(<span class="type">String</span>.<span class="kw">class</span>);
+  when(chatClient.prompt(cap.capture()))
+    .thenReturn(spec);
+  when(spec.call()).thenReturn(resp);
+  when(resp.content())
+    .thenReturn(<span class="str">"benign step output"</span>);
+
+  target.chain(<span class="type">PAYLOAD_TEMPLATE_BREAKOUT</span>);
+
+  <span class="kw">for</span> (<span class="type">String</span> captured : cap.getAllValues()) {
+    assertThat(captured)
+      .as(<span class="str">"LLM01: payload must not survive"</span>)
+      .doesNotContain(<span class="str">"}}"</span>)
+      .doesNotContain(<span class="str">"Ignore previous"</span>)
+      .doesNotContain(<span class="str">"system:"</span>);
+  }
+}</pre>
+    </div>
+    <div class="code-block vanilla">
+      <h4>Vanilla 输出 <span class="badge">不抓任何漏洞 ✗</span></h4>
+<pre><span class="anno">@Test</span>
+<span class="kw">void</span> chainFeedsPreviousResponse
+       IntoNextStep() {
+  when(resp.content())
+    .thenReturn(<span class="str">"first-out"</span>, <span class="str">"second-out"</span>);
+  <span class="type">String</span>[] prompts = { <span class="str">"PROMPT_A"</span>, <span class="str">"PROMPT_B"</span> };
+
+  <span class="kw">new</span> <span class="type">ChainWorkflow</span>(chatClient, prompts)
+    .chain(<span class="str">"USER_INPUT"</span>);
+
+  <span class="type">ArgumentCaptor</span>&lt;<span class="type">String</span>&gt; inputs =
+    <span class="type">ArgumentCaptor</span>.forClass(<span class="type">String</span>.<span class="kw">class</span>);
+  verify(chatClient, times(<span class="num-lit">2</span>))
+    .prompt(inputs.capture());
+  <span class="type">List</span>&lt;<span class="type">String</span>&gt; calls = inputs.getAllValues();
+
+  <span class="com">// 锁死在当前字面 format string</span>
+  assertThat(calls.get(<span class="num-lit">0</span>))
+    .isEqualTo(<span class="str">"{PROMPT_A}\n {USER_INPUT}"</span>);
+  assertThat(calls.get(<span class="num-lit">1</span>))
+    .isEqualTo(<span class="str">"{PROMPT_B}\n {first-out}"</span>);
+}</pre>
+    </div>
+  </div>
+
+  <div class="insight">
+    Vanilla 把测试<strong>锁死在当前字面 format string</strong>——它在 buggy 代码上 PASS，在 V_clean 上也 PASS：<strong>两边都不抓 LLM01 漏洞</strong>。Skill 断言<strong>没有任何 OWASP attack payload 在被捕获的 prompt 中存活</strong>——它在 buggy 上 FAIL，在 V_clean 上 PASS。
+  </div>
+</section>
+
+<!-- ============================ Slide 7 — Limits + Wrap ============================ -->
+<section class="slide" data-num="7">
+  <p class="eyebrow">Limits &amp; Take-aways</p>
+  <h2>N=3 是 existence proof，不是 benchmark；human-in-the-loop 永远在</h2>
+  <p class="subtitle">坦承 + 收尾。完整数据：<code class="inline">experiments/realworld-results.md</code>。</p>
+
+  <div class="limits-grid">
+    <div class="limits-col" style="color: #DC2626;">
+      <h3>⚠ 我们没做（坦承）</h3>
+      <ul style="color: #4B5563;">
+        <li><strong>没做 N=15+ benchmark</strong>——Week-7 范围外</li>
+        <li><strong>tool-handler / log-handler</strong> 模式没端到端验证</li>
+        <li><strong>Maven only · Java only · Spring AI 1.0 only</strong></li>
+        <li>不用 RAG（按需加载 markdown 替代）</li>
+        <li>catch 准则不用 model-as-judge（机械判定）</li>
+        <li>不安排 live demo（ASSIGNMENT 说不需要）</li>
+      </ul>
+    </div>
+    <div class="limits-col" style="color: #059669;">
+      <h3>✓ Take-aways</h3>
+      <ul style="color: #4B5563;">
+        <li><strong>12-0 catch differential</strong> 跨 3 个 agent 模式</li>
+        <li>差距是 <strong>framing，不是技术能力</strong></li>
+        <li><strong>$0 边际成本</strong>——用 Claude Code 订阅</li>
+        <li>所有生成测试 <strong>advisory</strong>——人类必须审阅</li>
+        <li>每个测试方法都<strong>引具体 OWASP risk ID</strong></li>
+        <li>skill = markdown rules，<strong>diff-reviewable</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="repo">github.com/c1375/AgentTest</div>
+</section>
+
+</main>
+
+<div class="nav-hint">← → 切换 · P 打印 · Home / End 跳到首末</div>
+
+<script>
+  const slides = document.querySelectorAll('section.slide');
+  let current = 0;
+
+  function goTo(i) {
+    if (i < 0) i = 0;
+    if (i >= slides.length) i = slides.length - 1;
+    current = i;
+    slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' ||
+        e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault(); goTo(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ||
+               e.key === 'PageUp') {
+      e.preventDefault(); goTo(current - 1);
+    } else if (e.key === 'p' || e.key === 'P') {
+      window.print();
+    } else if (e.key === 'Home') {
+      e.preventDefault(); goTo(0);
+    } else if (e.key === 'End') {
+      e.preventDefault(); goTo(slides.length - 1);
+    }
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        current = Array.from(slides).indexOf(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
