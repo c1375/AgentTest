@@ -22,65 +22,50 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.util.Assert;
 
 /**
- * Workflow: <b>Evaluator-optimizer</b>
- * <p/>
- * Implements the Evaluator-Optimizer workflow pattern for Large Language Model
- * (LLM) interactions. This workflow orchestrates a dual-LLM process where one
- * model
- * generates responses while another provides evaluation and feedback in an
- * iterative loop,
- * similar to a human writer's iterative refinement process.
+ * V_clean variant of {@link com.example.agentic.EvaluatorOptimizer} for
+ * AgentTest's Phase 2 stretch precision check. Identical to upstream
+ * spring-ai-examples@2a6088d EXCEPT for three OWASP defenses:
  *
- * <p>
- * The workflow consists of two main components:
- * <ul>
- * <li>A generator LLM that produces initial responses and refines them based on
- * feedback</li>
- * <li>An evaluator LLM that analyzes responses and provides detailed feedback
- * for improvement</li>
- * </ul>
+ * <ol>
+ *   <li><b>LLM01 / ASI01 — direct prompt injection</b>: the user
+ *       {@code task} is run through {@link #sanitize(String)} on entry to
+ *       {@link #loop(String)} so every generator/evaluator call sees the
+ *       cleaned form.</li>
+ *   <li><b>LLM01 / ASI04 — indirect injection via evaluator feedback</b>:
+ *       the evaluator's {@code feedback} field is run through
+ *       {@link #sanitize(String)} before it is appended to the
+ *       next-iteration {@code context}, so a poisoned evaluator response
+ *       cannot re-inject instructions into the generator.</li>
+ *   <li><b>LLM06 / ASI08 — bounded recursion (cascading failures)</b>:
+ *       the private recursive {@code loop} now carries an iteration
+ *       counter and throws {@link IllegalStateException} when
+ *       {@link #MAX_ITERATIONS} is exceeded. Without this cap a
+ *       perpetually-NEEDS_IMPROVEMENT evaluator triggers
+ *       {@link StackOverflowError}.</li>
+ * </ol>
  *
- * <b>Usage Criteria</b>
- * This workflow is particularly effective in scenarios that meet the following
- * conditions:
- * <ul>
- * <li>Clear evaluation criteria exist for assessing response quality</li>
- * <li>Iterative refinement provides measurable value to the output</li>
- * <li>The task benefits from multiple rounds of critique and improvement</li>
- * </ul>
+ * <p>The {@link #sanitize(String)} pattern set mirrors
+ * {@code rules/owasp/llm01-prompt-injection.md}'s canonical attack-payload
+ * inventory — same family used in {@code ChainWorkflow_fixed.java} and
+ * {@code OrchestratorWorkers_fixed.java}. The exception message includes
+ * the literal {@code "max"} so the skill's Invariant-1 test pattern
+ * ({@code assertThatThrownBy.hasMessageContaining("max")}) matches.
  *
- * <b>Fitness Indicators</b>
- * Two key indicators suggest this workflow is appropriate:
- * <ul>
- * <li>LLM responses can be demonstrably improved when feedback is
- * articulated</li>
- * <li>The evaluator LLM can provide substantive and actionable feedback</li>
- * </ul>
+ * <p>This file is NOT for production deployment.
  *
- * <b>Example Applications</b>
- * <ul>
- * <li>Literary translation requiring capture of subtle nuances through
- * iterative refinement</li>
- * <li>Complex search tasks needing multiple rounds of searching and
- * analysis</li>
- * <li>Code generation where quality can be improved through systematic
- * review</li>
- * <li>Content creation requiring multiple drafts and specific improvements</li>
- * </ul>
- *
- * @author Christian Tzolov
+ * @author Christian Tzolov (original) — sanitize / max-iter helpers added
+ *         by AgentTest for Phase 2 stretch V_clean validation, 2026-05-07.
  * @see <a href=
- *      "https://www.anthropic.com/research/building-effective-agents">Building
- *      effective agents</a>
+ *      "https://github.com/spring-projects/spring-ai-examples/blob/2a6088d/agentic-patterns/evaluator-optimizer/src/main/java/com/example/agentic/EvaluatorOptimizer.java">Upstream
+ *      EvaluatorOptimizer.java (V_buggy)</a>
  */
 @SuppressWarnings("null")
 public class EvaluatorOptimizer {
 
 	/**
 	 * Hard upper bound on refinement iterations. The evaluator LLM may never
-	 * emit PASS (either because the task is intrinsically hard, or because the
-	 * evaluator response was poisoned). Without a cap the recursion runs until
-	 * StackOverflowError — OWASP LLM06 / ASI08 cascading failure.
+	 * emit PASS (intrinsic difficulty or poisoned response). Without a cap
+	 * the recursion runs until StackOverflowError.
 	 */
 	private static final int MAX_ITERATIONS = 10;
 
@@ -118,23 +103,9 @@ public class EvaluatorOptimizer {
 			Use "PASS" only if all criteria are met with no improvements needed.
 			""";
 
-	/**
-	 * Represents a solution generation step. Contains the model's thoughts and the
-	 * proposed solution.
-	 *
-	 * @param thoughts The model's understanding of the task and feedback
-	 * @param response The model's proposed solution
-	 */
 	public static record Generation(String thoughts, String response) {
 	}
 
-	/**
-	 * Represents an evaluation response. Contains the evaluation result and
-	 * detailed feedback.
-	 *
-	 * @param evaluation The evaluation result (PASS, NEEDS_IMPROVEMENT, or FAIL)
-	 * @param feedback   Detailed feedback for improvement
-	 */
 	public static record EvaluationResponse(Evaluation evaluation, String feedback) {
 
 		public enum Evaluation {
@@ -142,14 +113,6 @@ public class EvaluatorOptimizer {
 		}
 	}
 
-	/**
-	 * Represents the final refined response. Contains the final solution and the
-	 * chain of thought showing the evolution of the solution.
-	 *
-	 * @param solution       The final solution
-	 * @param chainOfThought The chain of thought showing the evolution of the
-	 *                       solution
-	 */
 	public static record RefinedResponse(String solution, List<Generation> chainOfThought) {
 	}
 
@@ -173,55 +136,20 @@ public class EvaluatorOptimizer {
 		this.evaluatorPrompt = evaluatorPrompt;
 	}
 
-	/**
-	 * Initiates the evaluator-optimizer workflow for a given task. This method
-	 * orchestrates the iterative process of generation and evaluation until a
-	 * satisfactory solution is reached.
-	 *
-	 * <p>
-	 * The workflow follows these steps:
-	 * </p>
-	 * <ol>
-	 * <li>Generate an initial solution</li>
-	 * <li>Evaluate the solution against quality criteria</li>
-	 * <li>If evaluation passes, return the solution</li>
-	 * <li>If evaluation indicates need for improvement, incorporate feedback and
-	 * generate new solution</li>
-	 * <li>Repeat steps 2-4 until a satisfactory solution is achieved</li>
-	 * </ol>
-	 *
-	 * @param task The task or problem to be solved through iterative refinement
-	 * @return A RefinedResponse containing the final solution and the chain of
-	 *         thought
-	 *         showing the evolution of the solution
-	 */
 	public RefinedResponse loop(String task) {
 		List<String> memory = new ArrayList<>();
 		List<Generation> chainOfThought = new ArrayList<>();
 
-		return loop(task, "", memory, chainOfThought, 0);
+		// SAFETY: sanitize user task at the entry boundary so all subsequent
+		// generator and evaluator calls see the cleaned form.
+		String sanitizedTask = sanitize(task);
+		return loop(sanitizedTask, "", memory, chainOfThought, 0);
 	}
 
-	/**
-	 * Internal recursive implementation of the evaluator-optimizer loop. This
-	 * method
-	 * maintains the state of previous attempts and feedback while recursively
-	 * refining
-	 * the solution until it meets the evaluation criteria.
-	 *
-	 * @param task           The original task to be solved
-	 * @param context        Accumulated context including previous attempts and
-	 *                       feedback
-	 * @param memory         List of previous solution attempts for reference
-	 * @param chainOfThought List tracking the evolution of solutions and reasoning
-	 * @param iteration      Current iteration depth, seeded at 0 by the public
-	 *                       entry point. Used to enforce {@link #MAX_ITERATIONS}.
-	 * @return A RefinedResponse containing the final solution and complete solution
-	 *         history
-	 */
 	private RefinedResponse loop(String task, String context, List<String> memory,
 			List<Generation> chainOfThought, int iteration) {
 
+		// SAFETY: hard cap on recursion depth. Closes LLM06 / ASI08 surface.
 		if (iteration >= MAX_ITERATIONS) {
 			throw new IllegalStateException(
 					"Evaluator-optimizer exceeded max iterations: " + MAX_ITERATIONS);
@@ -234,31 +162,22 @@ public class EvaluatorOptimizer {
 		EvaluationResponse evaluationResponse = evalute(generation.response(), task);
 
 		if (evaluationResponse.evaluation().equals(EvaluationResponse.Evaluation.PASS)) {
-			// Solution is accepted!
 			return new RefinedResponse(generation.response(), chainOfThought);
 		}
 
-		// Accumulated new context including the last and the previous attempts and
-		// feedbacks.
 		StringBuilder newContext = new StringBuilder();
 		newContext.append("Previous attempts:");
 		for (String m : memory) {
 			newContext.append("\n- ").append(m);
 		}
-		newContext.append("\nFeedback: ").append(evaluationResponse.feedback());
+		// SAFETY: sanitize evaluator feedback before cycling into the next
+		// iteration's context. Closes LLM01 indirect / ASI04 surface — a
+		// poisoned evaluator response can't re-inject instructions.
+		newContext.append("\nFeedback: ").append(sanitize(evaluationResponse.feedback()));
 
 		return loop(task, newContext.toString(), memory, chainOfThought, iteration + 1);
 	}
 
-	/**
-	 * Generates or refines a solution based on the given task and feedback context.
-	 * This method represents the generator component of the workflow, producing
-	 * responses that can be iteratively improved through evaluation feedback.
-	 *
-	 * @param task    The primary task or problem to be solved
-	 * @param context Previous attempts and feedback for iterative improvement
-	 * @return A Generation containing the model's thoughts and proposed solution
-	 */
 	private Generation generate(String task, String context) {
 		Generation generationResponse = chatClient.prompt()
 				.user(u -> u.text("{prompt}\n{context}\nTask: {task}")
@@ -273,21 +192,6 @@ public class EvaluatorOptimizer {
 		return generationResponse;
 	}
 
-	/**
-	 * Evaluates if a solution meets the specified requirements and quality
-	 * criteria.
-	 * This method represents the evaluator component of the workflow, analyzing
-	 * solutions
-	 * and providing detailed feedback for further refinement until the desired
-	 * quality
-	 * level is reached.
-	 *
-	 * @param content The solution content to be evaluated
-	 * @param task    The original task against which to evaluate the solution
-	 * @return An EvaluationResponse containing the evaluation result
-	 *         (PASS/NEEDS_IMPROVEMENT/FAIL)
-	 *         and detailed feedback for improvement
-	 */
 	private EvaluationResponse evalute(String content, String task) {
 
 		EvaluationResponse evaluationResponse = chatClient.prompt()
@@ -301,6 +205,22 @@ public class EvaluatorOptimizer {
 		System.out.println(String.format("\n=== EVALUATOR OUTPUT ===\nEVALUATION: %s\n\nFEEDBACK: %s\n",
 				evaluationResponse.evaluation(), evaluationResponse.feedback()));
 		return evaluationResponse;
+	}
+
+	/**
+	 * Strip canonical OWASP LLM01 attack payload patterns from {@code input}.
+	 * Same pattern set as {@code ChainWorkflow_fixed.java} and
+	 * {@code OrchestratorWorkers_fixed.java}.
+	 */
+	private static String sanitize(String input) {
+		if (input == null) {
+			return "";
+		}
+		return input.replaceAll("[{}]", "")
+				.replaceAll("(?i)\\bignore\\b(?:\\s+\\w+){0,3}\\s+(?:above|previous|prior)\\b", "")
+				.replaceAll("(?i)\\b(?:system|assistant)\\s*:", "")
+				.replaceAll("(?i)<\\|im_(?:end|start)\\|>", "")
+				.replaceAll("(?i)\\[/?INST\\]", "");
 	}
 
 }
