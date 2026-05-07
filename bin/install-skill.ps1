@@ -11,13 +11,15 @@
 
 $ErrorActionPreference = "Stop"
 
-$src = Resolve-Path (Join-Path $PSScriptRoot "..\claude-skill\agenttest")
-$dst = Join-Path $env:USERPROFILE ".claude\skills\agenttest"
-
-if (-not (Test-Path $src)) {
-    Write-Error "Skill source not found at $src"
+# Verify source exists BEFORE Resolve-Path (which would throw a stack trace
+# under -ErrorAction Stop, bypassing the friendly error message).
+$srcPath = Join-Path $PSScriptRoot "..\claude-skill\agenttest"
+if (-not (Test-Path $srcPath)) {
+    Write-Error "Skill source not found at $srcPath"
     exit 1
 }
+$src = Resolve-Path $srcPath
+$dst = Join-Path $env:USERPROFILE ".claude\skills\agenttest"
 
 if (Test-Path $dst) {
     Write-Host "Skill already installed at $dst"
@@ -29,12 +31,14 @@ if (Test-Path $dst) {
     Remove-Item -Path $dst -Recurse -Force
 }
 
-$parent = Split-Path $dst -Parent
-if (-not (Test-Path $parent)) {
-    New-Item -ItemType Directory -Path $parent -Force | Out-Null
-}
-
-Copy-Item -Path $src -Destination $dst -Recurse -Force
+# Ensure destination exists, then copy CONTENTS of $src into $dst (using
+# `\*` glob). Without the glob, PowerShell's Copy-Item with a non-existent
+# destination can either: (a) create $dst and copy contents in (correct),
+# or (b) create $dst and copy the source folder as a child, yielding
+# ~\.claude\skills\agenttest\agenttest\ (broken). The `\*` form is
+# unambiguous.
+New-Item -ItemType Directory -Path $dst -Force | Out-Null
+Copy-Item -Path (Join-Path $src "*") -Destination $dst -Recurse -Force
 
 Write-Host ""
 Write-Host "Installed AgentTest skill to:"

@@ -2,7 +2,7 @@
 name: agenttest
 description: Generate JUnit 5 tests for Java AI agent code (Spring AI / LangChain4j / MCP) using canonical OWASP LLM Top 10 attack payloads. Tests fail on the OWASP risk and pass on correct code. Outputs are advisory — human review required before merge.
 disable-model-invocation: true
-allowed-tools: Read Bash Write Glob Grep
+allowed-tools: Read Bash Write Glob Grep AskUserQuestion
 ---
 
 # /agenttest <file>

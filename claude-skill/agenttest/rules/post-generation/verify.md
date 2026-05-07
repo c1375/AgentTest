@@ -51,10 +51,12 @@ If the target has the OWASP risk (e.g., upstream `ChainWorkflow.java`),
 attack-payload-assertion tests SHOULD fail — that means they caught
 the risk.
 
-**Apply catch criterion** (from `docs/plan/sprint-4.md` § 2):
+**Apply catch criterion** (regex below; this rule is self-contained, not
+dependent on external project docs):
+
 - Failure with assertion message matching
   `(?i)(sanitize|injection|template.?breakout|system\s*:|prompt.?inject)` →
-  CATCH ✓
+  CATCH ✓ (the test detected an OWASP-shape failure)
 - Failure with other assertion message → may be a wrong test, refine
 - ERROR (uncaught exception) → likely test bug, fix the test
 

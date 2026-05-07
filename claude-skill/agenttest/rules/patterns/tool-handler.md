@@ -40,11 +40,22 @@ the test-wiring specifics.
 class WeatherToolAgentGenTest {
 
     // Mock every I/O dependency — for "read-only" tools, all writes
-    // must be verifyNoInteractions
+    // must be verifyNoInteractions.
+    //
+    // IMPORTANT: java.nio.file.Files is final + static-only and cannot
+    // be @Mock'd directly with plain Mockito. If the tool wraps file
+    // ops behind a service interface (recommended), mock that service.
+    // If it calls Files.* directly, use Mockito's mockStatic:
+    //   try (MockedStatic<Files> filesStatic = mockStatic(Files.class)) {
+    //       filesStatic.when(() -> Files.write(any(), any(byte[].class)))
+    //                  .thenThrow(new AssertionError("unexpected write"));
+    //       target.readUser("user-123");
+    //       filesStatic.verifyNoInteractions();
+    //   }
     @Mock private RestTemplate httpClient;       // any external HTTP
-    @Mock private Files filesService;             // (use static mock if needed)
-    @Mock private EntityManager entityManager;    // any DB
-    @Mock private JmsTemplate jmsTemplate;        // any messaging
+    @Mock private FileService fileService;       // wrap Files.* behind a service
+    @Mock private EntityManager entityManager;   // any DB
+    @Mock private JmsTemplate jmsTemplate;       // any messaging
 
     private WeatherTool target;
 
@@ -72,7 +83,7 @@ class WeatherToolAgentGenTest {
         verify(httpClient, never()).postForObject(any(), any(), any());
         verify(httpClient, never()).put(any(), any());
         verify(httpClient, never()).delete(any());
-        verifyNoInteractions(filesService);
+        verifyNoInteractions(fileService);
         verifyNoInteractions(entityManager);
         verifyNoInteractions(jmsTemplate);
     }

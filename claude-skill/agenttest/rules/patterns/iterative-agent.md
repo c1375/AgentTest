@@ -96,13 +96,20 @@ void orchestrator_llmReturns1000Tasks_workerCountIsCapped() {
             .mapToObj(i -> new SubTask("task " + i, "guidelines"))
             .toList()
     );
-    // (mock chatClient → returns hugeResponse via .entity(OrchestratorResponse.class))
+    // Mock the full ChatClient fluent chain. Spring AI's structured-output
+    // call uses .entity(Class) on the response spec.
+    when(chatClient.prompt(anyString())).thenReturn(promptSpec);
+    when(promptSpec.call()).thenReturn(responseSpec);
+    when(responseSpec.entity(OrchestratorResponse.class))
+        .thenReturn(hugeResponse);
+    // Worker calls return benign content
+    when(responseSpec.content()).thenReturn("worker output");
 
     // When
     target.execute("user task");
 
-    // Then
-    verify(chatClient, atMost(REASONABLE_WORKER_CAP + 1))  // +1 for the orchestrator call itself
+    // Then: worker invocations must be capped, not 1+1000
+    verify(chatClient, atMost(REASONABLE_WORKER_CAP + 1))  // +1 for orchestrator
         .prompt(anyString());
 }
 ```

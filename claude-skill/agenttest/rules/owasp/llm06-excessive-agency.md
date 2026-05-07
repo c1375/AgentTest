@@ -61,11 +61,15 @@ void readUserTool_invokedWithUserId_doesNotInvokeAnyWriteSideEffect() {
     // Given: invoke the tool
     target.readUser("user-123");
 
-    // Then: every write-side-effect mock must be untouched
-    verifyNoInteractions(filesService);          // no Files.write
+    // Then: every write-side-effect mock must be untouched.
+    // (java.nio.file.Files is final + static-only; mock via a service
+    // interface in production code, or use MockedStatic if calling
+    // Files.* directly — see tool-handler.md for the MockedStatic recipe.)
+    verifyNoInteractions(fileService);           // no Files.write via service
     verifyNoInteractions(emailService);          // no Transport.send
     verifyNoInteractions(externalApiClient);     // no RestTemplate.post
-    verify(userRepository, only()).findById(any()); // only the read op
+    verify(userRepository).findById(any());      // only the read op was called
+    verifyNoMoreInteractions(userRepository);    // and nothing else on this mock
 }
 ```
 
@@ -210,11 +214,15 @@ client (LLM) reads these definitions and decides which tools to call.
 instructions in the description**, so the LLM sees them as authoritative
 guidance — this is "tool poisoning".
 
-Real CVEs:
-- CVE-2026-0755 (gemini-mcp-tool, CVSS 9.8) — command injection via
-  tool definition
-- CVE-2026-33032 (nginx-ui MCP, CVSS 9.8) — auth bypass via MCP message
-  endpoint
+Reported real-world MCP incidents (verify current details on NVD
+before citing in production):
+- gemini-mcp-tool (`CVE-2026-0755`) — reported as command injection via
+  tool definition; verify at <https://nvd.nist.gov/vuln/detail/CVE-2026-0755>
+- nginx-ui MCP (`CVE-2026-33032`) — reported as auth bypass via MCP
+  message endpoint; verify at <https://nvd.nist.gov/vuln/detail/CVE-2026-33032>
+
+For an ongoing timeline of MCP-related security incidents, see
+<https://authzed.com/blog/timeline-mcp-breaches>.
 
 ### Invariant
 

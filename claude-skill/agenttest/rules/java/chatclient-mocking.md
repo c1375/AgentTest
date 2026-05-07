@@ -9,8 +9,8 @@ on top of generic JUnit testing.
 
 ```java
 String response = chatClient
-    .prompt(input)               // returns ChatClient.PromptSpec
-    .call()                      // returns ChatClient.ResponseSpec
+    .prompt(input)               // returns ChatClient.ChatClientRequestSpec
+    .call()                      // returns ChatClient.CallResponseSpec
     .content();                  // returns String
 ```
 
@@ -36,8 +36,8 @@ import static org.mockito.Mockito.when;
 class TargetAgentGenTest {
 
     @Mock private ChatClient chatClient;
-    @Mock private ChatClient.PromptSpec promptSpec;
-    @Mock private ChatClient.ResponseSpec responseSpec;
+    @Mock private ChatClient.ChatClientRequestSpec promptSpec;
+    @Mock private ChatClient.CallResponseSpec responseSpec;
 
     private Target target;
 
@@ -97,8 +97,31 @@ for (String captured : capturedPrompts) {
 
 ### Builder pattern
 
-If the target uses `ChatClient.Builder` (e.g., gets it injected and
-calls `.build()`):
+Most spring-ai-examples inject `ChatClient.Builder` (not `ChatClient`)
+and call `.build()` after configuring defaults like `.defaultSystem(...)`,
+`.defaultAdvisors(...)`. To stub the whole fluent chain at once, use
+Mockito's `Answers.RETURNS_SELF`:
+
+```java
+import org.mockito.Answers;
+
+@Mock(answer = Answers.RETURNS_SELF)
+private ChatClient.Builder chatClientBuilder;
+
+@Mock private ChatClient chatClient;
+
+@BeforeEach
+void setup() {
+    // RETURNS_SELF makes every chained method on the builder return the
+    // builder itself, so .defaultSystem(x).defaultAdvisors(y) etc. work
+    // without explicit stubs. Override only .build():
+    when(chatClientBuilder.build()).thenReturn(chatClient);
+    target = new Target(chatClientBuilder);
+}
+```
+
+If the target only calls `chatClientBuilder.build()` (no fluent
+configuration in between), the simpler form works:
 
 ```java
 @Mock private ChatClient.Builder chatClientBuilder;
@@ -109,6 +132,8 @@ void setup() {
 }
 ```
 
+Pick based on what the target actually calls on the builder.
+
 ### Streaming responses
 
 `.stream().content()` returns `Flux<String>`:
@@ -116,7 +141,7 @@ void setup() {
 ```java
 import reactor.core.publisher.Flux;
 
-@Mock private ChatClient.StreamSpec streamSpec;
+@Mock private ChatClient.StreamResponseSpec streamSpec;
 
 when(promptSpec.stream()).thenReturn(streamSpec);
 when(streamSpec.content()).thenReturn(Flux.just("chunk 1", "chunk 2"));
@@ -127,7 +152,7 @@ when(streamSpec.content()).thenReturn(Flux.just("chunk 1", "chunk 2"));
 `.prompt(...).options(opts).call()` adds an interaction in between:
 
 ```java
-@Mock private ChatClient.PromptSpec promptSpecWithOptions;
+@Mock private ChatClient.ChatClientRequestSpec promptSpecWithOptions;
 
 when(promptSpec.options(any())).thenReturn(promptSpecWithOptions);
 when(promptSpecWithOptions.call()).thenReturn(responseSpec);
