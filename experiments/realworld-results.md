@@ -3,8 +3,8 @@
 Empirical comparison of `/agenttest <file>` (skill mode) vs vanilla
 Claude Code session (locked baseline prompt) on three real Java AI
 agent files in `spring-ai-examples @ 2a6088d`. Each test set runs via
-`mvn test` against (V_buggy, V_clean) variants per Sprint 4 plan
-methodology (`docs/plan/sprint-4.md` § "Eval methodology").
+`mvn test` against (V_buggy, V_clean) variants per the methodology
+captured in [`docs/project_plan.md`](../docs/project_plan.md) § 5.
 
 ## Final headline
 

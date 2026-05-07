@@ -104,7 +104,7 @@ no separate engine, no `ANTHROPIC_API_KEY`, no second LLM service.
   Code skill design philosophy (prompt-time augmentation), no second
   API key for the grader, validates against the user's real Spring
   AI Maven classpath. Full pivot rationale:
-  [`docs/plan/sprint-4.md`](docs/plan/sprint-4.md) § "Why pivot".
+  [`docs/project_plan.md`](docs/project_plan.md) § 8 "Sprint history".
 - **OWASP-anchored risk taxonomy.** No invented risk categories.
   Every emitted test method's javadoc cites a specific OWASP risk
   ID (LLM01, LLM06, etc.) plus the Agentic 2026 ASI mapping (ASI01
@@ -350,9 +350,7 @@ Full artifacts:
 - **Spring AI 1.0 fluent API only.** `chatclient-mocking.md` rule
   encodes Spring AI's specific `ChatClient.prompt().user(...).call()`
   shape. LangChain4j and raw MCP clients have different APIs.
-- **Demo clip is pending** — Phase 3 task 3 from
-  [`docs/plan/sprint-4.md`](docs/plan/sprint-4.md). Will be linked
-  here when recorded.
+- **Demo clip is pending.** Will be linked here when recorded.
 
 ## What this is NOT
 
@@ -375,11 +373,10 @@ inject), classpath mismatch (validator stubs vs real Spring AI jars),
 unclear product surface (a FastAPI server isn't user-facing), and
 skill design philosophy mismatch (Claude Code skills are prompt-time
 augmentation, not external LLM services). S4 pivoted to skill-native;
-the engine was deleted in commit `99df6e0`. The journey is documented
-in [`docs/plan/sprint-2.md`](docs/plan/sprint-2.md) →
-[`sprint-3.md`](docs/plan/sprint-3.md) →
-[`sprint-4.md`](docs/plan/sprint-4.md) (current SoT). Full pivot
-rationale: `sprint-4.md` § "Why pivot".
+the engine was deleted in commit `99df6e0` (recoverable from git
+history if archeology is needed). The full pivot rationale and locked
+post-pivot decisions live in [`docs/project_plan.md`](docs/project_plan.md)
+§§ 3, 4, 8.
 
 ## Related work (verified 2026-05-07)
 
@@ -420,8 +417,7 @@ Final project for a Generative AI course, **Week 7 deliverable**.
 
 - [`docs/ASSIGNMENT.md`](docs/ASSIGNMENT.md) — course requirements (binding, verbatim from Canvas)
 - [`docs/project_plan.md`](docs/project_plan.md) /
-  [`docs/project_plan.zh.md`](docs/project_plan.zh.md) — design rationale (English / Chinese)
-- [`docs/plan/sprint-{2,3,4}.md`](docs/plan/) — sprint history (S2/S3 archive the engine era; S4 is current)
+  [`docs/project_plan.zh.md`](docs/project_plan.zh.md) — design rationale (English / Chinese; § 8 has the full S1–S5 sprint history + pivot rationale)
 - [`experiments/realworld-results.md`](experiments/realworld-results.md) — full N=3 data + methodology + findings
 - [`experiments/{chainworkflow,orchestratorworkers,evaluatoroptimizer}/`](experiments/) — raw artifacts
 

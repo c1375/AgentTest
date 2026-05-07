@@ -13,14 +13,16 @@ specifically by anchoring tests to **OWASP LLM Top 10 risks** and writing
 
 The repo has been through a major pivot. The journey is the project:
 
-| Phase | Plan doc | What was built |
-|---|---|---|
-| S1–S3 (engine era) | `docs/plan/sprint-2.md` + `sprint-3.md` | FastAPI engine with analyzer / retrieval / generator / validator pipeline + synthetic injection eval harness |
-| S4 v2 (current) | `docs/plan/sprint-4.md` | **Pivot to skill-native architecture**. Engine deleted. Skill = `claude-skill/agenttest/` instructs the user's existing Claude Code session, no separate LLM service |
+| Phase | What was built |
+|---|---|
+| S1–S3 (engine era) | FastAPI engine with analyzer / retrieval / generator / validator pipeline + synthetic injection eval harness. Engine deleted from git in commit `99df6e0`; recoverable via `git show <pre-99df6e0-commit>:engine/...`. |
+| S4 (current) | **Pivot to skill-native architecture**. Skill = `claude-skill/agenttest/` instructs the user's existing Claude Code session, no separate LLM service. N=3 real-world eval committed under `experiments/`. |
 
-The pivot rationale (why engine was removed) lives in `docs/plan/sprint-4.md`
-§ "Why pivot". The course-facing rationale lives in `docs/project_plan.md` /
-`docs/project_plan.zh.md`.
+The course-facing architecture rationale lives in `docs/project_plan.md` /
+`docs/project_plan.zh.md`. Detailed sprint planning + phase tracking
+lives in `docs/plan/sprint-{2,3,4}.md` — these are **gitignored**
+(internal reference only, not on the public repo) but readable locally
+when working in this repo.
 
 The course assignment requirements live in `docs/ASSIGNMENT.md` and **bind
 every design decision**. When in doubt, defer to `docs/ASSIGNMENT.md`.
@@ -112,10 +114,16 @@ AgentTest/
 
 ## Architecture Source of Truth
 
-**The current architectural decision record is `docs/plan/sprint-4.md`.**
-When `sprint-4.md` and `docs/project_plan.md` disagree, `sprint-4.md` wins
-(project_plan.md is pre-pivot and pending update). When `docs/ASSIGNMENT.md`
-and any other doc disagree, `docs/ASSIGNMENT.md` wins.
+**The current architectural decision record is `docs/project_plan.md`**
+(its Chinese mirror at `docs/project_plan.zh.md`). It is the public,
+course-facing design doc rewritten in Phase 3 to reflect skill-native
++ N=3 eval results. When `docs/ASSIGNMENT.md` and any other doc
+disagree, `docs/ASSIGNMENT.md` wins.
+
+`docs/plan/sprint-{2,3,4}.md` are gitignored internal sprint plans;
+when needed for detailed phase planning or pivot-rationale archeology,
+read them locally — they are not on the public repo and references
+to them in tracked docs were removed.
 
 There is no separate `ARCHITECTURE.md` and there will not be one.
 
@@ -129,4 +137,4 @@ There is no separate `ARCHITECTURE.md` and there will not be one.
 | "OWASP" | Without further context, OWASP Top 10 for LLM Applications + OWASP LLMSVS + OWASP Top 10 for Agentic AI. Cite the specific risk ID (LLM01, LLM02, LLM06, etc.). |
 | "MyKefi" | The user's parallel Java project at `D:\MyKefi\MyKefi-App\MyKefi-AI-Platform`. AgentTest does NOT depend on MyKefi. Do not read MyKefi files. |
 | "test gen" | The skill (`/agenttest <file>` workflow), NOT a Python pipeline. |
-| "下一步" / "next" | Refer to `docs/plan/sprint-4.md` § "Implementation phases". |
+| "下一步" / "next" | Refer to `docs/project_plan.md` § 8 (sprint history) for context, then ask the user for the next concrete step — Phase 2 + Phase 3 tasks 1-2 are DONE; remaining is demo clip (Phase 3 task 3) + S5 answer prep. |

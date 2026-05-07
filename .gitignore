@@ -24,6 +24,13 @@ node_modules/
 # whatever has the dir handle releases.)
 engine/
 
+# Internal sprint planning docs (S2 / S3 engine-era, S4 skill-pivot
+# planning + status updates). Kept locally for the developer's own
+# reference and AI-assistant context, but not part of the public
+# deliverable. The course-facing architecture rationale lives in
+# docs/project_plan.md / .zh.md, which are tracked.
+docs/plan/
+
 # IDE / OS
 .idea/
 .vscode/

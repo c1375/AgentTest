@@ -251,8 +251,7 @@ See § 7 for the full controls list.
 The pre-pivot engine had RAG over OWASP catalog + agent-pattern
 library. The skill replaces this with ~12 markdown rule files loaded
 on-demand based on Step 1 classification — simpler, no embedding
-service, no second key. The pivot is documented in
-[`docs/plan/sprint-4.md`](plan/sprint-4.md) § "Why pivot".
+service, no second key. The pivot rationale is summarized in § 8 below.
 
 ### Baseline
 
@@ -530,9 +529,9 @@ over-suggestion). The skill-era equivalents:
 
 | S | Week | What happened |
 |---|------|---------------|
-| **S1** | 4 | Repo skeleton: pyproject + agents wiring, analyzer with 1 risk-site rule, retriever stub, generator stub. End-to-end FastAPI engine pipeline runs on 1 example, emits a dummy JUnit method. ([`docs/plan/sprint-2.md`](plan/sprint-2.md) historical narrative.) |
+| **S1** | 4 | Repo skeleton: pyproject + agents wiring, analyzer with 1 risk-site rule, retriever stub, generator stub. End-to-end FastAPI engine pipeline runs on 1 example, emits a dummy JUnit method. |
 | **S2** | 5 | Real generator prompt for LLM01. OWASP catalog YAML with 4 risks. Validator (parse + compile + clean-input check). 5 hand-built test cases. First recall numbers (4/6 = 66.7%). |
-| **S3** | 6 | **Course Week-6 check-in.** Agent-pattern retrieval added. Baseline endpoint live. Test set expanded to 6 cases. Headline: pipeline 4/6 = baseline 4/6 — same recall, **different failure modes** (pipeline drops at validator gate; baseline ships wrong-invariant tests). [`docs/plan/sprint-3.md`](plan/sprint-3.md) documents the differentiator. |
+| **S3** | 6 | **Course Week-6 check-in.** Agent-pattern retrieval added. Baseline endpoint live. Test set expanded to 6 cases. Headline: pipeline 4/6 = baseline 4/6 — same recall, **different failure modes** (pipeline drops at validator gate; baseline ships wrong-invariant tests). |
 | **S4** | 7 | **Mid-sprint architecture review pivots from engine to skill-native.** Engine deleted (commit `99df6e0`). Skill scaffold + 12 modular rules authored. Phase 2 real-world eval on `ChainWorkflow.java` (anchor) + `OrchestratorWorkers.java` + `EvaluatorOptimizer.java` (stretch) — N=3 final headline 12-0. README + project_plan rewrite. |
 | **S5** | 8 | (Planned) Lightning presentation slides. README final pass. Demo clip. (Optional polish: log-handler validation, MCP target validation.) |
 
@@ -561,9 +560,9 @@ eval, no model-as-judge.
 
 The pre-pivot engine code is recoverable from git history at any
 commit before `99df6e0` (e.g., `git show 4359ac7:engine/...`). The
-commits comprising the pivot are documented in
-[`docs/plan/sprint-4.md`](plan/sprint-4.md) § "Pre-pivot artifact
-disposition".
+S2/S3/S4 sprint plans (gitignored under `docs/plan/`) carry the
+detailed phase tracking, locked decisions, and pre-pivot artifact
+disposition for archeology when needed.
 
 ## 9. Pair request
 
