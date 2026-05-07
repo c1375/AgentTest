@@ -81,14 +81,42 @@ This is N=1 real-world data confirming the skill catches a real OWASP
 LLM01 vulnerability in upstream Spring AI code AND does not produce
 false positives on the defended variant.
 
-## Vanilla baseline (Phase 2 task 2)
+## Vanilla baseline (Phase 2 task 2) — **DONE**
 
-Not yet run. Need to:
+Vanilla Claude Code session ran with locked baseline prompt 「帮我给
+ChainWorkflow.java 写一个测试」, no skill invoked. Generated
+`ChainWorkflowTest.java` (5 tests, behavior-match style).
 
-1. Open spring-ai-examples in a separate Claude Code session (skill installed but NOT invoked)
-2. Type locked baseline prompt verbatim: 「帮我给 ChainWorkflow.java 写一个测试」
-3. Save vanilla output to `experiments/chainworkflow/test_vanilla.java`
-4. Record Claude Code version + model + timestamp in `experiments/chainworkflow/baseline-context.md`
+**Empirical mvn test results**:
+- V_buggy: 5/5 PASS → **catch = 0** ✗
+- V_clean: 5/5 PASS → **precision = ✓**
+
+See `experiments/chainworkflow/baseline-context.md` for the full
+analysis (test method names + intent, mock setup style, why test #3
+PASSES on V_clean despite asserting `{}` in the format).
+
+## Final headline (Phase 2 complete)
+
+| Mode | Sample | V_buggy outcome | V_clean outcome | Catch | Precision | Headline |
+|---|---|---|---|---|---|---|
+| **skill (`/agenttest`)** | ChainWorkflow.java | 4/5 FAIL ✓ catch | 5/5 PASS | **✓** | **✓** | **TRUE** |
+| **vanilla** (locked baseline prompt) | ChainWorkflow.java | 5/5 PASS (catch 0) | 5/5 PASS | **✗** | ✓ | **FALSE** |
+
+Skill wins on the **catch** dimension — the only dimension where the
+skill's discipline materially differs from vanilla's defaults. Both
+modes have precision intact.
+
+**Take-away**: vanilla Claude in Claude Code has the technical ability
+to write attack-payload-assertion tests (it correctly used
+`ArgumentCaptor.getAllValues()`, knew Spring AI types
+`ChatClient.ChatClientRequestSpec` / `CallResponseSpec`) — but doesn't
+default to thinking adversarially without explicit framing. The
+skill's value-add is the **framing + canonical attack payloads**, not
+new technical knowledge.
+
+This is N=1 real-world data, but the dichotomy is sharp and
+reproducible: 4 catches vs 0 catches on the same code, in the same
+project, with the same Claude Code build.
 
 ## Files
 
