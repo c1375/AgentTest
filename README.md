@@ -284,7 +284,7 @@ attack payloads (assert what *should* hold regardless of current code
 state). Per-sample raw artifacts (test_skill.java, test_vanilla.java,
 V_clean variant) are committed under `experiments/<sample>/`.
 
-### Cross-cutting findings (abridged from results.md)
+### Cross-cutting findings (abridged from [`experiments/realworld-results.md`](experiments/realworld-results.md))
 
 1. **vanilla has the technical chops, lacks the framing.** All three
    vanilla outputs used the correct Spring AI 1.0 fluent-API mocks,
@@ -393,7 +393,8 @@ Full artifacts:
   (orchestrator-workers + evaluator-optimizer) for the stretch
   precisely because the skill has unvalidated rules for them.
   `tool-handler`, `log-handler`, MCP server patterns are not
-  end-to-end validated in Phase 2.
+  end-to-end validated in our N=3 eval — they are documented
+  rules without an empirical run.
 - **V_clean scope must match catch scope.** First-pass V_clean for
   the two stretch samples fixed only the bounded-loop OWASP risk
   (`LLM06`), reasoning that this was the "stretch-specific" risk.
