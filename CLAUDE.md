@@ -2,155 +2,131 @@
 
 Per-project instructions for Claude Code working in this repository.
 
-**AgentTest** is a Generative AI course final project (Week 4–8). It is an
-**agent-aware unit test generator for Java AI agent code** — Spring AI,
-LangChain4j, MCP server implementations. Input = a Java class implementing
-an agent pattern (prompt assembler, tool handler, MCP server, etc.). Output
-= a JUnit 5 test suite covering three classes of agent invariants:
+**AgentTest** is a Generative AI course final project (Week 4–8) packaged as
+a **Claude Code skill**. Goal: when a Spring AI / LangChain4j / MCP developer
+opens their Java project in Claude Code and types `/agenttest <file>`, our
+skill produces JUnit 5 tests that are better than what vanilla Claude writes —
+specifically by anchoring tests to **OWASP LLM Top 10 risks** and writing
+**invariant tests, not behavior-match tests**.
 
-1. **Safety** (OWASP-anchored): prompt injection, sensitive-data leakage,
-   multi-tenant boundary, excessive tool agency.
-2. **Agent-pattern correctness**: tool schema vs. implementation conformance,
-   prompt-template stability, RAG-context handling.
-3. **Reliability**: retry / circuit-breaker boundaries, idempotency under
-   transient failure.
+## Architecture history (read before non-trivial decisions)
 
-OWASP is the **eval ground truth** — the synthetic-injection harness only
-scores risks in category (1), keeping the primary metric model-as-judge-
-free. Categories (2) and (3) ride on the same pipeline but are not part of
-the headline recall / precision number. See `docs/project_plan.md` § 1, § 5.
+The repo has been through a major pivot. The journey is the project:
 
-Generated test class files are named `<TargetClass>AgentGenTest.java`. The
-baseline synthesizer's system prompt deliberately retains the narrower
-"security-focused Java test engineer" role — it simulates a developer
-using Claude alone with a security focus and is the fair-comparison
-baseline, not the project's positioning.
+| Phase | Plan doc | What was built |
+|---|---|---|
+| S1–S3 (engine era) | `docs/plan/sprint-2.md` + `sprint-3.md` | FastAPI engine with analyzer / retrieval / generator / validator pipeline + synthetic injection eval harness |
+| S4 v2 (current) | `docs/plan/sprint-4.md` | **Pivot to skill-native architecture**. Engine deleted. Skill = `claude-skill/agenttest/` instructs the user's existing Claude Code session, no separate LLM service |
 
-The full design rationale lives in `docs/project_plan.md` (English) /
-`docs/project_plan.zh.md` (Chinese) — read it before making non-trivial decisions.
+The pivot rationale (why engine was removed) lives in `docs/plan/sprint-4.md`
+§ "Why pivot". The course-facing rationale lives in `docs/project_plan.md` /
+`docs/project_plan.zh.md`.
 
-The course assignment requirements live in `docs/ASSIGNMENT.md` and **bind every
-design decision**. When in doubt, defer to `docs/ASSIGNMENT.md`.
+The course assignment requirements live in `docs/ASSIGNMENT.md` and **bind
+every design decision**. When in doubt, defer to `docs/ASSIGNMENT.md`.
 
 ## Quick Reference
 
-| | Engine (`engine/`) |
-|-|-----------|
-| Stack | FastAPI + Python 3.11 |
-| Port | `8000` |
-| Run (dev) | `cd engine && uvicorn agenttest.main:app --reload --port 8000` |
-| Run (docker) | `docker build -t agenttest engine/ && docker run -p 8000:8000 agenttest` |
-| Test | `cd engine && pytest` |
-| Install | `cd engine && pip install -e ".[dev]"` |
-
-There is no UI. Surfaces are: a CLI (for evaluation), the FastAPI server
-(for the Claude Code skill), and (later) a packaged skill / MCP tool.
+| Component | Location | Purpose |
+|---|---|---|
+| Skill source | `claude-skill/agenttest/` | The deliverable (SKILL.md + rules/) |
+| Install script | `bin/install-skill.ps1` | Copies skill to `~/.claude/skills/agenttest/` |
+| Phase 2 eval | `experiments/chainworkflow/` | Real-world eval artifacts on `ChainWorkflow.java` |
+| Real-world target | `E:\桌面\Generative AI\spring-ai-examples` | Spring AI Examples repo, pinned `2a6088d` (cloned alongside) |
 
 ## CRITICAL RULES — YOU MUST FOLLOW
 
-1. **No real LLM calls in unit tests.** `tests/test_agents.py` validates
-   factory wiring without making API calls. Anything that needs Anthropic
-   should use a mock or be marked as an integration test (explicit opt-in
-   via `@pytest.mark.integration`).
+1. **Skill-native, NOT external service.** `SKILL.md` instructs the user's
+   existing Claude Code session — it does NOT call out to a separate Python
+   engine or LLM API. No `ANTHROPIC_API_KEY` needed for the skill path.
+   The skill's value-add is **OWASP grounding + agent-pattern recognition +
+   invariant-test discipline**, not a fancier LLM call.
 
-2. **Secrets via `.env` only.** Never hard-code an API key. The default
-   `anthropic_api_key` in `config.py` is the placeholder
-   `sk-placeholder-for-startup` — that is intentional, mirroring MyKefi's
-   pattern, so the app boots without real keys.
+2. **Generated tests are advisory, not authoritative.** A human must review
+   tests before they land in any real project's `src/test/java`. The README,
+   `SKILL.md`, and any user-facing surface must say so explicitly. This is
+   a course assignment requirement (`docs/ASSIGNMENT.md` "where a human
+   should stay involved") AND engineering common sense — an LLM-written
+   test that asserts the wrong invariant locks bad behavior in.
 
-3. **`agents.yaml` is the per-role model contract.** When adding a new LLM
-   role: (1) add an entry in `engine/configs/agents.yaml`, (2) add the value
-   to the `AgentRole` enum in `engine/src/agenttest/agents/role.py`. Both.
-   Don't add a role only in code — the factory iterates `AgentRole` and
-   looks each one up in YAML.
+3. **OWASP is the source of truth for risk taxonomy.** Anchor risk
+   categories to OWASP Top 10 for LLM Applications / OWASP LLMSVS / OWASP
+   Top 10 for Agentic AI. Don't invent risk categories. Cite specific risk
+   IDs (LLM01, LLM02, LLM06, etc.) in skill rules.
 
-4. **Generated tests are advisory, not authoritative.** AgentTest synthesizes
-   JUnit tests; **a human must review them before they land in any real
-   project's `src/test/java`**. The README, the lightning presentation, and
-   any user-facing surface must say so explicitly. This is a course
-   assignment requirement (`docs/ASSIGNMENT.md` "where a human should stay
-   involved") and it is also engineering common sense: an LLM-written test
-   that asserts the wrong invariant locks bad behavior in.
+4. **Invariant tests, not behavior-match tests.** Tests should fail on
+   buggy code AND pass on correct code. A test that asserts current
+   behavior won't catch bugs (the buggy code IS the current behavior).
+   The skill MUST teach Claude to assert what SHOULD be true, not what
+   IS true. This is the project's #1 differentiator vs vanilla Claude.
 
-5. **OWASP is the source of truth for risk taxonomy.** When defining or
-   refining a risk category the system targets, anchor it to OWASP Top 10
-   for LLM Applications / OWASP LLMSVS / OWASP Top 10 for Agentic AI.
-   Don't invent risk categories from scratch — cite the OWASP entry in
-   prompts and in eval cases.
-
-6. **Eval ground truth is synthetic injection.** The eval harness takes a
-   library of clean Java agent code samples, injects a known OWASP-aligned
-   risk pattern, runs AgentTest on the now-buggy sample, and checks
-   whether the synthesized tests fail on the buggy version (good) and
-   pass on the clean version (good). Recall / precision are measured
-   against this objective ground truth — **no model-as-judge for the
-   primary metric**.
+5. **Skill structure follows clear-solutions/unit-tests-skills convention**:
+   `SKILL.md` (5-step orchestrator) + `rules/` directory of modular markdown
+   rules grouped by `general/` / `owasp/` / `patterns/` / `java/unit/` /
+   `post-generation/`. Don't put everything in one file. Reference:
+   <https://github.com/clear-solutions/unit-tests-skills>.
 
 ## Workflow
 
-This is a single-developer course project. Don't impose multi-agent TDD
-pipelines.
-
-- **For backend code**: invoke the `python-backend-dev` sub-agent
 - **For code review**: invoke the `code-reviewer` sub-agent (after
   non-trivial changes, before commits)
 - **For status check**: `/status`
 - **For end-of-session sync**: `/debrief`
 - **For locking a design decision**: `/decision`
 
-Tests are nice-to-have, not required for every change. Critical-path code
-(factory wiring, Java AST analyzer, prompt assembly, mutation harness,
-schema validators) gets tests; one-off scripts don't.
+This is a single-developer course project. Don't impose multi-agent TDD
+pipelines.
 
-## Repo Layout
+## Repo Layout (post-pivot)
 
 ```
 AgentTest/
-├── CLAUDE.md                             # this file (Claude Code project rules)
-├── .env.example
+├── CLAUDE.md                            # this file
+├── README.md                            # user-facing (rewrite due in Phase 4)
+├── .gitignore
 ├── docs/
-│   ├── ASSIGNMENT.md                     # course requirements (source of truth)
-│   └── project_plan.md / project_plan.zh.md  # the course deliverable
-├── engine/                               # FastAPI server + analysis pipeline
-│   ├── pyproject.toml
-│   ├── Dockerfile
-│   ├── src/agenttest/
-│   │   ├── main.py                       # FastAPI app + lifespan
-│   │   ├── config.py                     # pydantic-settings
-│   │   ├── http/                         # routes, SSE
-│   │   ├── agents/                       # per-role Claude clients
-│   │   └── adapters/                     # provider registry (Anthropic etc.)
-│   │   # to be added during implementation:
-│   │   # ├── analyzer/                   # Java AST + risk identification
-│   │   # ├── retrieval/                  # OWASP catalog + agent patterns
-│   │   # ├── generator/                  # JUnit test synthesis
-│   │   # └── evaluator/                  # mutation-injection harness
-│   ├── tests/
-│   ├── eval/                             # eval harness (added during impl)
-│   └── configs/
-│       └── agents.yaml                   # per-role model config
-└── .claude/                              # Claude Code workflow config
+│   ├── ASSIGNMENT.md                    # course requirements (source of truth)
+│   ├── project_plan.md / .zh.md         # course deliverable doc (pre-pivot — needs update)
+│   └── plan/
+│       ├── sprint-2.md                  # historical (engine era, kept as narrative)
+│       ├── sprint-3.md                  # historical (engine era, kept as narrative)
+│       └── sprint-4.md                  # CURRENT plan (pivot to skill)
+├── claude-skill/
+│   └── agenttest/
+│       ├── SKILL.md                     # 5-step orchestrator
+│       └── rules/
+│           ├── general/                 # cross-language testing principles
+│           ├── owasp/                   # LLM01 / LLM02 / LLM06 invariants + payloads
+│           ├── patterns/                # agent pattern recognition rules
+│           ├── java/unit/               # JUnit 5 + Mockito + AssertJ specifics
+│           └── post-generation/         # mvn test-compile + mvn test verification
+├── experiments/
+│   └── chainworkflow/                   # Phase 2 eval (V_clean, test outputs, results.md)
+├── bin/
+│   └── install-skill.ps1                # install skill to ~/.claude/skills/
+└── .claude/                             # Claude Code workflow config
+    ├── agents/code-reviewer.md
+    ├── commands/{debrief,decision,status}.md
+    └── hooks/{guard-dangerous-bash,post-edit-reminders}.sh
 ```
 
 ## Architecture Source of Truth
 
-**The only architecture document that matters is `docs/project_plan.md` (or
-`docs/project_plan.zh.md`).** Any architectural change must update it. There is
-no separate `ARCHITECTURE.md` and there will not be one — `docs/project_plan.md`
-is short enough to be the single source.
+**The current architectural decision record is `docs/plan/sprint-4.md`.**
+When `sprint-4.md` and `docs/project_plan.md` disagree, `sprint-4.md` wins
+(project_plan.md is pre-pivot and pending update). When `docs/ASSIGNMENT.md`
+and any other doc disagree, `docs/ASSIGNMENT.md` wins.
 
-When `docs/project_plan.md` and this file disagree, `docs/project_plan.md` wins
-(except on the points marked CRITICAL RULES above, which bind regardless).
-When `docs/ASSIGNMENT.md` and `docs/project_plan.md` disagree, `docs/ASSIGNMENT.md` wins.
+There is no separate `ARCHITECTURE.md` and there will not be one.
 
 ## When the User Says…
 
 | User says | You should… |
-|-|-|
-| "搭框架" / "scaffold" | Re-read `docs/project_plan.md` § 4 (architecture) before adding files |
-| "MyKefi" | The user's parallel Java project at `D:\MyKefi\MyKefi-App\MyKefi-AI-Platform`. AgentTest does NOT depend on MyKefi or run against it as part of evaluation. The user may install the AgentTest skill on their own MyKefi repo for personal use, but that is private and not part of the deliverable. Do not read MyKefi files. |
-| "agents" / "agent role" | The Python `AgentRole` enum in `engine/src/agenttest/agents/role.py`, which mirrors `engine/configs/agents.yaml`. Not Spring beans. |
-| "OWASP" | Without further context, OWASP Top 10 for LLM Applications + OWASP LLMSVS + OWASP Top 10 for Agentic AI. Cite the specific risk ID (LLM01, LLM03, etc.) when referencing. |
-| "test gen" / "the eval" | The synthetic-injection eval harness in `engine/eval/` (built during the project), NOT pytest. |
-| "skill" | The Claude Code skill packaged at the end of the project that wraps the `/agenttest` workflow. Today it is unbuilt; reference `docs/project_plan.md` § 8 for the surface plan. |
-| "下一步" / "next" | Refer to the sprint sequence in `docs/project_plan.md` § 8. |
+|---|---|
+| "skill" | The Claude Code skill at `claude-skill/agenttest/`. `SKILL.md` is the entry point; `rules/` holds the modular instructions. |
+| "engine" | Refer to historical context — the pre-pivot engine has been removed. Git history before the cleanup commit has the code if archeology is needed. |
+| "ChainWorkflow" / "spring-ai-examples" | The Phase 2 eval target. Real OSS file with unfixed OWASP LLM01 vulnerability at line 121. Located at `E:\桌面\Generative AI\spring-ai-examples\agentic-patterns\chain-workflow\src\main\java\com\example\agentic\ChainWorkflow.java`, pinned to commit `2a6088d`. |
+| "OWASP" | Without further context, OWASP Top 10 for LLM Applications + OWASP LLMSVS + OWASP Top 10 for Agentic AI. Cite the specific risk ID (LLM01, LLM02, LLM06, etc.). |
+| "MyKefi" | The user's parallel Java project at `D:\MyKefi\MyKefi-App\MyKefi-AI-Platform`. AgentTest does NOT depend on MyKefi. Do not read MyKefi files. |
+| "test gen" | The skill (`/agenttest <file>` workflow), NOT a Python pipeline. |
+| "下一步" / "next" | Refer to `docs/plan/sprint-4.md` § "Implementation phases". |
