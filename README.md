@@ -265,8 +265,24 @@ structurally absent: we do not write the bug.
 
 ### Results — N=3 final headline
 
-See the table in [TL;DR](#tldr). 12-0 catch differential; both modes
-have intact precision (no false positives on `V_clean`).
+| Sample | Pattern | skill catches | skill precision | vanilla catches | vanilla precision |
+|---|---|---|---|---|---|
+| `ChainWorkflow.java` | chain workflow | **4 / 4** ✓ † | 5 / 5 ✓ | 0 / 5 ✗ | 5 / 5 ✓ |
+| `OrchestratorWorkers.java` | iterative-agent (fan-out) | **4 / 4** ✓ | 4 / 4 ✓ | 0 / 7 ✗ | 7 / 7 ✓ |
+| `EvaluatorOptimizer.java` | iterative-agent (recursion) | **4 / 4** ✓ | 4 / 4 ✓ | 0 / 7 ✗ | 7 / 7 ✓ |
+| **TOTAL** | 3 patterns | **12 catches** | 13 / 13 PASS | **0 catches** | 19 / 19 PASS |
+
+† ChainWorkflow's skill output is 4 attack-payload tests + 1 sanity
+test (always-PASS); the catch denominator counts attack-payload tests
+only. Precision counts all 5.
+
+**12-0 catch differential, both modes have intact precision** — neither
+false-positives on `V_clean`. The delta is **framing**, not technical
+capability: vanilla writes behavior-match tests (assert what the code
+*currently does*); skill writes invariant tests anchored to OWASP
+attack payloads (assert what *should* hold regardless of current code
+state). Per-sample raw artifacts (test_skill.java, test_vanilla.java,
+V_clean variant) are committed under `experiments/<sample>/`.
 
 ### Cross-cutting findings (abridged from results.md)
 
