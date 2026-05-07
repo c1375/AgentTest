@@ -18,9 +18,11 @@ dist/
 node_modules/
 .vite/
 
-# Local data
-engine/data/*
-!engine/data/.gitkeep
+# Pre-pivot engine directory (deleted from git in commit 99df6e0; if a
+# locked empty dir lingers on Windows, ignore it here so future
+# `git status` is clean. Manual filesystem cleanup recommended once
+# whatever has the dir handle releases.)
+engine/
 
 # IDE / OS
 .idea/
