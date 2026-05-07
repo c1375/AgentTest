@@ -1,5 +1,9 @@
 # OWASP LLM01 — Prompt Injection (Direct + Indirect)
 
+> **OWASP mapping**: LLM Top 10 LLM01 (Prompt Injection); OWASP Agentic
+> 2026 ASI01 (Agent Goal Hijack). Same risk class — ASI01 generalizes
+> LLM01 to multi-step agent contexts.
+
 Loaded by `SKILL.md` Step 1 when the target is a chain workflow or
 prompt assembler (anything that builds an LLM prompt from user input
 or from intermediate LLM responses).
