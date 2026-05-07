@@ -21,8 +21,8 @@ have the same OWASP LLM01 risk shape; they differ in test structure.
 - Often returns the final step's response
 
 If neither signal matches → not a prompt assembler / chain workflow.
-**Refuse**: "no prompt-assembler / chain-workflow pattern detected in
-this file."
+**Refuse**: "no chain-workflow pattern detected in this file; AgentTest
+does not apply." (Canonical refusal phrasing — see SKILL.md Step 1.)
 
 ## OWASP risk
 

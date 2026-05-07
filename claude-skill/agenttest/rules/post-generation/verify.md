@@ -4,13 +4,24 @@ Runs after the test code is generated (`SKILL.md` Step 6). Mechanically
 verifies the test compiles and that expected outcomes hold. **Never
 deliver tests that don't compile.**
 
-## Step 6.1: Compile preflight
+## Step 1: Compile preflight
 
+(Numbered locally within this rule. SKILL.md's Step 6 invokes the
+verify workflow as a whole; this rule's internal Steps 1-4 run in
+sequence.)
+
+POSIX shell:
 ```bash
 cd <project_root>  # the user's Maven project root (where pom.xml is)
 ./mvnw test-compile -q 2>&1 | tail -30
-# OR if mvnw not present:
-mvn test-compile -q 2>&1 | tail -30
+# OR if mvnw not present: mvn test-compile -q 2>&1 | tail -30
+```
+
+PowerShell (Windows — note `.\mvnw.cmd` rather than `./mvnw`):
+```powershell
+cd <project_root>
+.\mvnw.cmd test-compile -q 2>&1 | Select-Object -Last 30
+# OR if mvnw.cmd not present: mvn test-compile -q
 ```
 
 ### Success
@@ -37,10 +48,16 @@ After fix, re-run `mvn test-compile -q`.
 ("test source generated but did not compile after 5 retry attempts;
 manual review required") — don't loop forever.
 
-## Step 6.2: Run on current target (V_buggy if it has the OWASP risk)
+## Step 2: Run on current target (V_buggy if it has the OWASP risk)
 
+POSIX shell:
 ```bash
 ./mvnw test -Dtest=<TargetClass>AgentGenTest -q 2>&1 | tail -50
+```
+
+PowerShell:
+```powershell
+.\mvnw.cmd test "-Dtest=<TargetClass>AgentGenTest" -q 2>&1 | Select-Object -Last 50
 ```
 
 Record per-method outcome:
@@ -60,7 +77,7 @@ dependent on external project docs):
 - Failure with other assertion message → may be a wrong test, refine
 - ERROR (uncaught exception) → likely test bug, fix the test
 
-## Step 6.3: Run on V_clean (if user provides one)
+## Step 3: Run on V_clean (if user provides one)
 
 If the user has a "fixed" version of the target file (e.g., they wrote
 a `sanitize()` helper):
@@ -87,7 +104,7 @@ Inspect the failure:
 If still failing after 3 attempts → drop that test method, log as
 "could not stabilize", report.
 
-## Step 6.4: Report outcomes
+## Step 4: Report outcomes
 
 In the conversation, print a structured summary:
 

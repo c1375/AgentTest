@@ -8,11 +8,19 @@ classes for this target. Match conventions; don't duplicate.
 For target class `<TargetClass>`, search the project's test source roots:
 
 ```bash
-# Maven convention:
-find src/test/java -name "<TargetClass>Test.java" -o -name "<TargetClass>Tests.java" -o -name "<TargetClass>AgentGenTest.java"
-
-# Or use Glob: src/test/java/**/<TargetClass>*Test*.java
+# POSIX shell (Linux / macOS / Git Bash):
+find src/test/java -name "<TargetClass>Test.java" \
+                   -o -name "<TargetClass>Tests.java" \
+                   -o -name "<TargetClass>AgentGenTest.java"
 ```
+
+```powershell
+# Windows PowerShell:
+Get-ChildItem -Path src\test\java -Recurse -Filter "<TargetClass>*Test*.java"
+```
+
+Or use Claude Code's Glob tool: `src/test/java/**/<TargetClass>*Test*.java`
+(works on any OS).
 
 ### If `<TargetClass>AgentGenTest.java` already exists
 

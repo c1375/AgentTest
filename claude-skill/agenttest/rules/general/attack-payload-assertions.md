@@ -30,10 +30,10 @@ void chainProcessesInput() {
 ```
 
 This test:
-- ✅ Compiles
-- ✅ Passes on the current (possibly buggy) code
-- ❌ **Will also pass on the fixed code**
-- ❌ **Catches no bugs** — it just verifies that the function runs
+- ✓ Compiles
+- ✓ Passes on the current (possibly buggy) code
+- ✗ **Will also pass on the fixed code**
+- ✗ **Catches no bugs** — it just verifies that the function runs
 
 What we want instead:
 
@@ -58,10 +58,10 @@ void chain_userInputContainsTemplateBreakout_noStepLeaksPayload() {
 ```
 
 This test:
-- ✅ Compiles
-- ✅ **FAILS on the buggy code** (catches the OWASP risk)
-- ✅ **PASSES on the fixed code** (no false positive)
-- ✅ Verifies what the code passes to the LLM, not the mock's response
+- ✓ Compiles
+- ✓ **FAILS on the buggy code** (catches the OWASP risk)
+- ✓ **PASSES on the fixed code** (no false positive)
+- ✓ Verifies what the code passes to the LLM, not the mock's response
 
 ## The discipline checklist
 

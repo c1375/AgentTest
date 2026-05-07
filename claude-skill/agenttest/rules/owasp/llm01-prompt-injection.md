@@ -105,13 +105,13 @@ controlled via a clever payload) cycles into the next step.
 
 ## What NOT to assert
 
-- ❌ DON'T assert about LLM output content (`response.contains("X")`) —
+- ✗ DON'T assert about LLM output content (`response.contains("X")`) —
   the LLM is mocked, you're testing the mock, not the code
-- ❌ DON'T assert "method returns X" (behavior testing, not safety)
-- ❌ DON'T configure mocks to always echo back attack payloads in the
+- ✗ DON'T assert "method returns X" (behavior testing, not safety)
+- ✗ DON'T configure mocks to always echo back attack payloads in the
   response, then verify the return value contains them — that's a
   tautology
-- ❌ DON'T use `verify(mock).prompt("exact expected string")` — too
+- ✗ DON'T use `verify(mock).prompt("exact expected string")` — too
   brittle, breaks on legitimate prompt text changes
 
 The test should verify **what the code passes to the LLM**, not what

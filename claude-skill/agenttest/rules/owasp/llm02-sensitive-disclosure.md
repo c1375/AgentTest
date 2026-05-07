@@ -132,11 +132,11 @@ void handleError_includesUserEmail_responseRedactsIt() {
 
 ## What NOT to assert
 
-- ❌ DON'T assert "log message contains the redacted form `***@example.com`"
+- ✗ DON'T assert "log message contains the redacted form `***@example.com`"
   — that's testing a specific implementation. The invariant is "raw PII
   not present", not "specific redaction format used".
-- ❌ DON'T assert log level / count — irrelevant to LLM02.
-- ❌ DON'T mock the logger and verify call count — LLM02 is about output
+- ✗ DON'T assert log level / count — irrelevant to LLM02.
+- ✗ DON'T mock the logger and verify call count — LLM02 is about output
   content, not call frequency.
 
 ## Source
