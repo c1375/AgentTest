@@ -1,167 +1,108 @@
-# Course Assignment — Final Project (Generative AI)
+# Assignment
 
-This document records the course assignment requirements verbatim. It is the
-**source of truth** for what the final deliverable must satisfy. Any conflict
-between project plans and this file should resolve in favor of this file.
+> **Source-of-truth note** — This document is a **verbatim copy** of the
+> course's final-project assignment as posted on Canvas. Editorial
+> commentary, derived constraints, and AgentTest team's reading of how
+> this binds our design live in [`assignment-constraints.md`](assignment-constraints.md).
+> When this file and any project plan disagree, this file wins.
 
 ---
-
-## Assignment
 
 Build a small GenAI app, skill, or tool for one narrow business use case.
 
 Your project should help a specific user complete a specific workflow:
-drafting one type of document, reviewing one kind of clause, extracting fields
-from one document type, answering questions from one knowledge base, preparing
-one kind of memo, triaging one class of requests, or something similarly
-focused.
+drafting one type of document, reviewing one kind of clause, extracting
+fields from one document type, answering questions from one knowledge
+base, preparing one kind of memo, triaging one class of requests, or
+something similarly focused.
 
-The goal is **not** to build the biggest or most complicated system. The goal
-is to show that you can:
-
-- Design a useful GenAI workflow
-- Explain the business value
-- Compare it against a simpler baseline
-- Evaluate where it works and where it fails
+The goal is not to build the biggest or most complicated system. The
+goal is to show that you can design a useful GenAI workflow, explain
+the business value, compare it against a simpler baseline, and evaluate
+where it works and where it fails.
 
 ## What to build
 
-The final artifact can be an app, skill, tool, or a combination.
+Your final artifact can be an app, skill, tool, or a combination.
 
-- **App**: Streamlit, Gradio, a small web app, a command-line app, or
-  similar. Someone should be able to run it and use it on at least one
-  example.
-- **Skill / tool**: usable by someone working with an agent. For example,
-  a well-documented Codex skill, an MCP tool, a callable script with clear
-  inputs and outputs, or a workflow helper that an agent can reliably invoke.
+If you build an app, it can be Streamlit, Gradio, a small web app, a
+command-line app, or something similar. Someone should be able to run
+it and use it on at least one example.
 
-A notebook or loose script by itself is **not enough** unless it is clearly
+If you build a skill or tool, it should be usable by someone working
+with an agent. For example, it might be a well-documented Codex skill,
+an MCP tool, a callable script with clear inputs and outputs, or a
+workflow helper that an agent can reliably invoke.
+
+A notebook or loose script by itself is not enough unless it is clearly
 packaged as a usable app, skill, or tool.
 
-The project must clearly show:
+Your project should clearly show:
 
-1. The user and workflow
-2. What you built
-3. Why GenAI is useful for this task
-4. What you compared it against
-5. What worked, what failed, and where a human should stay involved
+- the user and workflow
+- what you built
+- why GenAI is useful for this task
+- what you compared it against
+- what worked, what failed, and where a human should stay involved
 
 ## Evaluation
 
-Keep the evaluation **simple, but make it real**. Do not rely only on
+Keep the evaluation simple, but make it real. Do not rely only on
 screenshots or one successful example.
 
-Use a small set of realistic examples and compare your project against a
-simpler baseline. The baseline can be:
+Use a small set of realistic examples and compare your project against
+a simpler baseline. The baseline can be how the work is done now, the
+status quo. It can also be a prompt-only version, keyword search, a
+spreadsheet workflow, or another simple approach.
 
-- How the work is done now (status quo)
-- A prompt-only version
-- Keyword search
-- A spreadsheet workflow
-- Another simple approach
-
-In the README, briefly explain:
-
-- What you tested
-- What counted as good output
-- What the comparison showed
-- Where the project broke down
+In the README, briefly explain what you tested, what counted as good
+output, what the comparison showed, and where the project broke down.
 
 ## Requirements and notes
 
-- May use synthetic data, public data, or real data with permission
-- **Do not commit secrets, API keys, private data, or PII** to the repository
-- A paid LLM provider account is recommended if free tiers slow you down
-- If the project depends on an API key, explain in the README how the grader
-  should provide it. **Do not include the key itself.**
-- Choose the **simplest technical design** that lets you evaluate the workflow
-  well. **Do not use RAG, agents, or multiple models unless they actually
-  help the workflow.**
+- You may use synthetic data, public data, or real data you have permission to use.
+- Do not commit secrets, API keys, private data, or PII to your repository.
+- At this point in the course, I recommend using a paid LLM provider account if free tiers or local models slow you down. Keep your usage modest, but do not let access limits prevent you from finishing the project.
+- If your project depends on an API key, explain how the grader should provide it in the README. Do not include the key itself.
+- Choose the simplest technical design that lets you evaluate the workflow well. Do not use RAG, agents, or multiple models unless they actually help the workflow.
 
-## Lightning presentation
+## Lightning Presentation
 
-- 2–3 minutes
-- Short, direct, focused on the project as a business workflow
-- No need to explain every technical detail
-- No need to run a live demo
-- Slides required
+Final presentations will be 2-3 minutes each.
+
+Your presentation should be short, direct, and focused on the project
+as a business workflow. You do not need to explain every technical
+detail, and you do not need to run a live demo.
 
 Cover four things:
 
-1. **Context, user, and problem** — Who is the user? What workflow are you
-   improving? Why does this problem matter?
-2. **Solution and design** — What did you build? What are the main GenAI
-   design choices?
-3. **Evaluation and results** — What did you compare against? What test
-   cases or rubric did you use? What did your evaluation show?
-4. **Artifact snapshot** — One screenshot, short clip, sample output, or
-   quick walkthrough showing the artifact exists and works. Do not rely on
-   a live system working perfectly.
+- **Context, user, and problem** — Who is the user? What workflow are you improving? Why does this problem matter?
+- **Solution and design** — What did you build? What are the main GenAI design choices?
+- **Evaluation and results** — What did you compare against? What test cases or rubric did you use? What did your evaluation show?
+- **Artifact snapshot** — Show brief evidence that the app, skill, or tool exists and works: one screenshot, a short recorded clip, a sample output, or a quick walkthrough of the interface. Do not rely on a live system working perfectly in the moment.
+
+Please rehearse so the presentation fits the time limit. Please use
+slides to assist your presentation.
+
+There is no separate project check-in assignment. If you want feedback
+before the final presentation, come to office hours or email the
+instructor.
 
 ## Submission
 
-GitHub repository link via Canvas.
+Submit a GitHub repository link through Canvas.
 
-Repository must include:
+Your repository should include your app, skill, or tool; any prompts
+or scripts needed to run it; dependencies; and a clear README.
 
-- The app, skill, or tool
-- Any prompts or scripts needed to run it
-- Dependencies
-- A clear README
+The README should include the same four pieces as your presentation,
+but in more detail:
 
-The README must include the same four pieces as the presentation, in more
-detail:
+- **Context, user, and problem**: who the user is, what workflow you are improving, and why it matters
+- **Solution and design**: what you built, how it works, and the key design choices
+- **Evaluation and results**: what baseline you compared against, what test cases or rubric you used, and what you found
+- **Artifact snapshot**: screenshots, sample inputs/outputs, a short recorded clip, or another concise way to show what the project does
 
-1. **Context, user, and problem** — who the user is, what workflow you are
-   improving, why it matters
-2. **Solution and design** — what you built, how it works, key design
-   choices
-3. **Evaluation and results** — baseline compared against, test cases or
-   rubric used, what you found
-4. **Artifact snapshot** — screenshots, sample inputs/outputs, short clip,
-   or another concise demonstration
-
-The README must also include **setup and usage instructions**. A grader must
-be able to install dependencies and run the project on at least one example
-by following the README.
-
----
-
-## Constraints derived from the assignment (quick reference)
-
-These are the implications that bind every design decision.
-
-### Scope discipline
-
-- **Narrow workflow** — one user, one workflow. Not a platform.
-- **Simplest design that lets evaluation work**. RAG, multi-model, multi-stage
-  pipelines must each **earn their place** by demonstrably improving over a
-  simpler version. If an ablation shows a component doesn't help, **drop it
-  from the deliverable** rather than defending it.
-
-### Evaluation discipline
-
-- **Small but real**. The assignment explicitly says small is fine — what
-  matters is that the eval reflects realistic examples, not cherry-picks.
-- **Mandatory baseline comparison**. Pick one, justify it, run it.
-- **Document what counts as good output** before measuring. Don't define the
-  rubric after seeing the numbers.
-- **Report failures honestly**. "Where it broke down" is a required README
-  section.
-
-### Deliverable discipline
-
-- **Runnable by grader**. README must walk a stranger from clone → working
-  example. Test this by reading the README cold.
-- **No secrets in repo**. `.env` patterns, key-injection instructions in
-  README.
-- **Artifact must exist as a real, runnable thing** — app / CLI / skill /
-  MCP tool / Codex skill. A notebook alone fails.
-- **Lightning presentation is 2–3 minutes**. The pitch must compress to that.
-  If the pitch needs more than 3 minutes to land, the scope is too wide.
-
-### Human-in-the-loop framing
-
-- "Where a human should stay involved" is a required section. This is not
-  optional. The deliverable must explicitly mark which decisions remain
-  human even after the tool runs.
+The README should also include setup and usage instructions. A grader
+should be able to install the dependencies and run or use the project
+on at least one example by following your README.
