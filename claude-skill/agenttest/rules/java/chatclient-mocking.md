@@ -1,61 +1,160 @@
-# Rule: Spring AI ChatClient mocking with ArgumentCaptor
+# Spring AI ChatClient mocking with ArgumentCaptor
 
-## Role in the skill
+The technical recipe for mocking Spring AI's `ChatClient` fluent API in
+a way that lets a test inspect the prompt sent to the LLM (vs only the
+function's return value). This is AgentTest's #1 technical contribution
+on top of generic JUnit testing.
 
-Provides the **technical recipe** for mocking Spring AI's `ChatClient`
-fluent API in a way that lets a test **inspect the prompt** sent to the
-LLM (vs only the function's return value). This is the trick that makes
-attack-payload-assertion tests work for LLM01 prompt injection.
+## The Spring AI ChatClient fluent chain
 
-## Status
+```java
+String response = chatClient
+    .prompt(input)               // returns ChatClient.PromptSpec
+    .call()                      // returns ChatClient.ResponseSpec
+    .content();                  // returns String
+```
 
-Skeleton — content authoring pending Phase 1.
+Each step is a separate Mockito mock interaction. The `ArgumentCaptor`
+goes on `chatClient.prompt(input)` to grab `input` (the actual prompt
+sent to the LLM).
 
-## Planned content
+## Mockito setup pattern
 
-- **The Spring AI ChatClient fluent chain**:
-  ```java
-  String response = chatClient
-      .prompt(input)               // returns ChatClient.PromptSpec
-      .call()                      // returns ChatClient.ResponseSpec
-      .content();                  // returns String
-  ```
-  Each step is a separate Mockito mock interaction; the captor goes on
-  `prompt(input)` to grab `input`.
-- **Mockito setup pattern**:
-  ```java
-  ChatClient chatClient = mock(ChatClient.class);
-  ChatClient.PromptSpec promptSpec = mock(ChatClient.PromptSpec.class);
-  ChatClient.ResponseSpec responseSpec = mock(ChatClient.ResponseSpec.class);
+```java
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.client.ChatClient;
 
-  ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
-  when(chatClient.prompt(promptCaptor.capture())).thenReturn(promptSpec);
-  when(promptSpec.call()).thenReturn(responseSpec);
-  when(responseSpec.content()).thenReturn("step 1 output", "step 2 output", "...");
-  ```
-- **Inspecting captured prompts**:
-  ```java
-  // After the chain workflow runs:
-  List<String> capturedPrompts = promptCaptor.getAllValues();
-  // Step 0 prompt = capturedPrompts.get(0)
-  // Step 1 prompt = capturedPrompts.get(1)  (received step-0's LLM output as input)
-  // ...
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
-  // Assert payload didn't survive into step 0 (direct injection):
-  assertThat(capturedPrompts.get(0)).doesNotContain("}}");
-  // Assert payload didn't survive into step 1 (indirect via response cycling):
-  assertThat(capturedPrompts.get(1)).doesNotContain("system:");
-  ```
-- **Variants**:
-  - Builder pattern: `ChatClient.Builder` is a separate mock target
-  - Streaming: `.stream().content()` returns `Flux<String>`
-  - With options: `.prompt(...).options(opts).call()` adds an interaction
+@ExtendWith(MockitoExtension.class)
+class TargetAgentGenTest {
+
+    @Mock private ChatClient chatClient;
+    @Mock private ChatClient.PromptSpec promptSpec;
+    @Mock private ChatClient.ResponseSpec responseSpec;
+
+    private Target target;
+
+    @BeforeEach
+    void setup() {
+        target = new Target(chatClient);
+    }
+
+    @Test
+    void someTest() {
+        // Capture the prompt argument
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+
+        // Wire the fluent chain
+        when(chatClient.prompt(promptCaptor.capture())).thenReturn(promptSpec);
+        when(promptSpec.call()).thenReturn(responseSpec);
+        when(responseSpec.content()).thenReturn("mock response");
+
+        // Trigger the code under test
+        target.method("user input");
+
+        // Inspect the captured prompt
+        String capturedPrompt = promptCaptor.getValue();
+        assertThat(capturedPrompt).contains("user input");
+    }
+}
+```
+
+Note: the `Target` class is constructed manually in `@BeforeEach`
+rather than via `@InjectMocks`. `@InjectMocks` works for simple cases
+but can be confusing when the target's constructor takes a
+`ChatClient.Builder` (some Spring AI samples) — manual construction is
+clearer.
+
+## Inspecting captured prompts (multi-step / chain workflow)
+
+Chain workflows call `chatClient.prompt(...)` N times in a loop.
+ArgumentCaptor captures all of them:
+
+```java
+List<String> capturedPrompts = promptCaptor.getAllValues();
+// Step 0 prompt = capturedPrompts.get(0)
+// Step 1 prompt = capturedPrompts.get(1)  // received step-0's LLM output as input
+// ...
+```
+
+For OWASP LLM01 attack-payload assertions, iterate through all captured
+prompts and assert the payload doesn't appear in any:
+
+```java
+for (String captured : capturedPrompts) {
+    assertThat(captured).doesNotContain("}}");
+}
+```
+
+## Variants
+
+### Builder pattern
+
+If the target uses `ChatClient.Builder` (e.g., gets it injected and
+calls `.build()`):
+
+```java
+@Mock private ChatClient.Builder chatClientBuilder;
+@BeforeEach
+void setup() {
+    when(chatClientBuilder.build()).thenReturn(chatClient);
+    target = new Target(chatClientBuilder);
+}
+```
+
+### Streaming responses
+
+`.stream().content()` returns `Flux<String>`:
+
+```java
+import reactor.core.publisher.Flux;
+
+@Mock private ChatClient.StreamSpec streamSpec;
+
+when(promptSpec.stream()).thenReturn(streamSpec);
+when(streamSpec.content()).thenReturn(Flux.just("chunk 1", "chunk 2"));
+```
+
+### Method invocation with options
+
+`.prompt(...).options(opts).call()` adds an interaction in between:
+
+```java
+@Mock private ChatClient.PromptSpec promptSpecWithOptions;
+
+when(promptSpec.options(any())).thenReturn(promptSpecWithOptions);
+when(promptSpecWithOptions.call()).thenReturn(responseSpec);
+```
+
+## Common pitfalls
+
+1. **Forgetting to mock the entire chain** — if `responseSpec.content()`
+   isn't stubbed, it returns null, and the code under test may NPE
+   before reaching the assertion. Always mock all 3 levels.
+2. **Using `any()` instead of `ArgumentCaptor.capture()`** — `any()`
+   matches but doesn't record. Use the captor for prompt inspection.
+3. **One captor for N invocations** — `getValue()` returns the LAST
+   captured value, `getAllValues()` returns all. Use `getAllValues()`
+   for chain workflows.
+4. **Strict stubbing failures** — Mockito 5+ enforces strict stubbing.
+   If you see `UnnecessaryStubbingException`, remove unused mocks or
+   use `@MockitoSettings(strictness = Strictness.LENIENT)` (sparingly).
+5. **Generic type erasure** — `ArgumentCaptor<String>` works fine via
+   `ArgumentCaptor.forClass(String.class)`. Avoid `ArgumentCaptor.captor()`
+   (Mockito 5 method) on Java versions where it's not available.
 
 ## Source
 
 Original to AgentTest. Spring AI ChatClient API reference:
 <https://docs.spring.io/spring-ai/reference/1.0/api/chatclient.html>
 
-This is the file that doesn't exist in clear-solutions/unit-tests-skills
-(which is general Java testing, not Spring AI specific) — one of
+This recipe (multi-level mock + ArgumentCaptor on `prompt()`) is the
+file that doesn't exist in `clear-solutions/unit-tests-skills` — one of
 AgentTest's primary technical contributions.
